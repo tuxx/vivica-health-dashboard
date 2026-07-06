@@ -64,35 +64,42 @@
 
     <main>
       <section id="calendar-view" class="view">
-        <header class="view-header">
-          <h1>Calendar</h1>
-          <p class="muted">What you've eaten, by day. Cached locally after the first load.</p>
-        </header>
-
-        <div class="calendar-layout">
-          <div class="panel">
-            <div class="calendar-toolbar">
-              <button id="cal-prev" class="btn-ghost btn-icon" aria-label="Previous month">‹</button>
-              <h2 id="cal-month-label"></h2>
-              <button id="cal-next" class="btn-ghost btn-icon" aria-label="Next month">›</button>
-              <button id="cal-today" class="btn-ghost small">Today</button>
-            </div>
-            <div class="calendar-weekdays" id="calendar-weekdays"></div>
-            <div id="calendar-grid" class="calendar-grid"></div>
+        <div class="day-panel-page">
+          <div class="day-panel-header">
+            <button id="day-prev" class="btn-ghost btn-icon" aria-label="Previous day">‹</button>
+            <button type="button" id="day-panel-date" class="day-title-btn"></button>
+            <button id="day-next" class="btn-ghost btn-icon" aria-label="Next day">›</button>
+            <button id="day-today" class="btn-ghost small">Today</button>
+            <span class="spacer"></span>
+            <button id="day-panel-log" class="btn-primary small" title="Log food for this day (N)">+ Log food <kbd class="shortcut-hint-inline">N</kbd></button>
+            <button id="day-panel-refresh" class="btn-ghost btn-icon" title="Refresh from server">⟳</button>
           </div>
 
           <div class="panel" id="day-panel">
-            <div id="day-panel-empty" class="muted">Pick a day on the calendar.</div>
-            <div id="day-panel-content" class="hidden">
-              <div class="day-panel-header">
-                <h2 id="day-panel-date"></h2>
-                <button id="day-panel-log" class="btn-primary small" title="Log food for this day (N)">+ Log food <kbd class="shortcut-hint-inline">N</kbd></button>
-                <button id="day-panel-refresh" class="btn-ghost btn-icon" title="Refresh from server">⟳</button>
-              </div>
+            <div id="day-totals-section" class="day-totals-section collapsed">
+              <button type="button" id="day-totals-toggle" class="day-totals-toggle-btn">
+                <span id="day-totals-summary-text" class="day-totals-toggle-value"></span>
+                <div class="tile-bar day-totals-toggle-bar">
+                  <div class="tile-bar-fill" id="day-totals-summary-fill"></div>
+                </div>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
               <div id="day-panel-totals" class="day-totals"></div>
-              <div id="day-panel-items"></div>
             </div>
+            <div id="day-panel-items"></div>
           </div>
+        </div>
+
+        <div id="calendar-popover" class="calendar-popover hidden">
+          <div class="calendar-toolbar">
+            <button id="cal-prev" class="btn-ghost btn-icon" aria-label="Previous month">‹</button>
+            <h2 id="cal-month-label"></h2>
+            <button id="cal-next" class="btn-ghost btn-icon" aria-label="Next month">›</button>
+          </div>
+          <div class="calendar-weekdays" id="calendar-weekdays"></div>
+          <div id="calendar-grid" class="calendar-grid"></div>
         </div>
       </section>
 

@@ -7,7 +7,8 @@ const DEFAULT_SETTINGS = {
   theme: 'system',        // 'light' | 'dark' | 'system'
   timeFormat: '24h',      // '24h' | '12h'
   firstDayOfWeek: 'mon',  // 'mon' | 'sun'
-  dateFormat: 'long'      // 'long' | 'dmy' | 'mdy' | 'ymd'
+  dateFormat: 'long',     // 'long' | 'dmy' | 'mdy' | 'ymd'
+  totalsCollapsed: true   // whether the day panel's nutrient-tiles grid starts collapsed
 };
 
 function loadSettings() {
@@ -74,6 +75,11 @@ function todayStr() {
 }
 function dateToStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function addDays(ds, delta) {
+  const d = new Date(ds + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  return dateToStr(d);
 }
 function nowTimeStr() {
   return new Date().toTimeString().slice(0, 5);

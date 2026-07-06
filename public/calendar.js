@@ -13,6 +13,10 @@ const NUTRIENT_TILES = [
   { key: 'fibt_g', label: 'Fiber', unit: 'g' }
 ];
 
+function tileBarFillPercent(value, goalVal) {
+  return Math.min(100, round(value / goalVal * 100, 1));
+}
+
 const WEEKDAY_LABELS = {
   mon: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   sun: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -34,10 +38,25 @@ window.initCalendar = function initCalendar() {
 
   document.addEventListener('vivica:settings-changed', () => {
     renderWeekdayHeader();
-    renderCalendarMonth();
-    if (calendarSelectedDate) renderDayPanel(calendarSelectedDate, calendarCache[calendarSelectedDate]);
+    if (!$('#calendar-popover').classList.contains('hidden')) renderCalendarMonth();
+    if (calendarSelectedDate) {
+      $('#day-panel-date').textContent = formatDateDisplay(calendarSelectedDate);
+      renderDayPanel(calendarSelectedDate, calendarCache[calendarSelectedDate]);
+    }
+    $('#day-totals-section').classList.toggle('collapsed', currentSettings.totalsCollapsed);
   });
 
+  $('#day-totals-section').classList.toggle('collapsed', currentSettings.totalsCollapsed);
+  $('#day-totals-toggle').addEventListener('click', () => {
+    const isCollapsed = $('#day-totals-section').classList.toggle('collapsed');
+    saveSettings({ totalsCollapsed: isCollapsed });
+  });
+
+  $('#day-prev').addEventListener('click', () => selectDay(addDays(calendarSelectedDate, -1)));
+  $('#day-next').addEventListener('click', () => selectDay(addDays(calendarSelectedDate, 1)));
+  $('#day-today').addEventListener('click', () => selectDay(todayStr()));
+
+  $('#day-panel-date').addEventListener('click', () => toggleCalendarPopover());
   $('#cal-prev').addEventListener('click', () => {
     calendarRefDate = new Date(calendarRefDate.getFullYear(), calendarRefDate.getMonth() - 1, 1);
     renderCalendarMonth();
@@ -46,12 +65,13 @@ window.initCalendar = function initCalendar() {
     calendarRefDate = new Date(calendarRefDate.getFullYear(), calendarRefDate.getMonth() + 1, 1);
     renderCalendarMonth();
   });
-  $('#cal-today').addEventListener('click', () => {
-    calendarRefDate = new Date();
-    calendarRefDate.setDate(1);
-    renderCalendarMonth();
-    selectDay(todayStr());
+  document.addEventListener('click', (e) => {
+    const popover = $('#calendar-popover');
+    if (popover.classList.contains('hidden')) return;
+    if (popover.contains(e.target) || e.target === $('#day-panel-date')) return;
+    closeCalendarPopover();
   });
+
   $('#day-panel-refresh').addEventListener('click', () => {
     if (calendarSelectedDate) fetchDayStats(calendarSelectedDate, { force: true }).then(() => selectDay(calendarSelectedDate));
   });
@@ -60,9 +80,30 @@ window.initCalendar = function initCalendar() {
   });
 
   renderWeekdayHeader();
-  renderCalendarMonth();
   selectDay(todayStr());
 };
+
+// Popover calendar: only fetched/rendered on demand (opening it), not on page load —
+// the day view is the main focus now, a whole month's stats shouldn't be a startup cost.
+function openCalendarPopover() {
+  const popover = $('#calendar-popover');
+  calendarRefDate = new Date(calendarSelectedDate + 'T00:00:00');
+  calendarRefDate.setDate(1);
+  renderCalendarMonth();
+
+  popover.classList.remove('hidden');
+  const anchor = $('#day-panel-date').getBoundingClientRect();
+  const maxLeft = window.innerWidth - popover.offsetWidth - 12;
+  popover.style.top = `${anchor.bottom + 8}px`;
+  popover.style.left = `${Math.max(12, Math.min(anchor.left, maxLeft))}px`;
+}
+window.closeCalendarPopover = function closeCalendarPopover() {
+  $('#calendar-popover').classList.add('hidden');
+};
+function toggleCalendarPopover() {
+  if ($('#calendar-popover').classList.contains('hidden')) openCalendarPopover();
+  else closeCalendarPopover();
+}
 
 window.invalidateCalendarDay = function invalidateCalendarDay(ds) {
   delete calendarCache[ds];
@@ -102,7 +143,7 @@ function renderCalendarMonth() {
     if (ds === today) cell.classList.add('is-today');
     if (ds === calendarSelectedDate) cell.classList.add('selected');
     cell.innerHTML = `<span class="day-num">${d}</span>`;
-    cell.addEventListener('click', () => selectDay(ds));
+    cell.addEventListener('click', () => { selectDay(ds); closeCalendarPopover(); });
     grid.appendChild(cell);
 
     if (calendarCache[ds]) updateDayCell(ds, calendarCache[ds]);
@@ -177,8 +218,6 @@ async function selectDay(ds) {
   calendarSelectedDate = ds;
   $$('.cal-day').forEach((el) => el.classList.toggle('selected', el.dataset.date === ds));
 
-  $('#day-panel-empty').classList.add('hidden');
-  $('#day-panel-content').classList.remove('hidden');
   $('#day-panel-date').textContent = formatDateDisplay(ds);
   $('#day-panel-items').innerHTML = '<p class="muted">Loading…</p>';
   $('#day-panel-totals').innerHTML = '';
@@ -196,6 +235,8 @@ function renderDayPanel(ds, data) {
 
   if (data?.error) {
     totalsEl.innerHTML = '';
+    $('#day-totals-summary-text').textContent = '';
+    $('#day-totals-summary-fill').style.width = '0%';
     itemsEl.innerHTML = `<p class="error">Could not load this day: ${escapeHtml(data.message || '')}</p>`;
     return;
   }
@@ -209,7 +250,7 @@ function renderDayPanel(ds, data) {
     const goalVal = parseInt(goal[key], 10);
     const goalStr = goalVal ? ` / ${goalVal}` : '';
     const bar = goalVal
-      ? `<div class="tile-bar"><div class="tile-bar-fill${value > goalVal ? ' over-goal' : ''}" style="width: ${Math.min(100, round(value / goalVal * 100, 1))}%"></div></div>`
+      ? `<div class="tile-bar"><div class="tile-bar-fill${value > goalVal ? ' over-goal' : ''}" style="width: ${tileBarFillPercent(value, goalVal)}%"></div></div>`
       : '';
     return `<div class="day-total-tile">
       <div class="value">${value}${goalStr} ${unit}</div>
@@ -217,6 +258,14 @@ function renderDayPanel(ds, data) {
       ${bar}
     </div>`;
   }).join('');
+
+  // Header summary bar (Energy) — stays visible whether the tile grid is collapsed or not.
+  const energyValue = round(stats.enercc_kcal || 0, 0);
+  const energyGoal = parseInt(goal.enercc_kcal, 10);
+  $('#day-totals-summary-text').textContent = energyGoal ? `${energyValue} / ${energyGoal} kcal` : `${energyValue} kcal`;
+  const summaryFill = $('#day-totals-summary-fill');
+  summaryFill.style.width = `${energyGoal ? tileBarFillPercent(energyValue, energyGoal) : 0}%`;
+  summaryFill.classList.toggle('over-goal', !!energyGoal && energyValue > energyGoal);
 
   const items = data.items || {};
   const orderedDayParts = (window.dayParts && window.dayParts.length ? window.dayParts : Object.keys(items));

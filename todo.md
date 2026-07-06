@@ -26,6 +26,23 @@
 - [ ] **Day-part totals reflect goal status at a glance** — the day panel
   already shows totals vs. goal, but color-coding (e.g. red/green tile border)
   would make over/under status scannable without reading numbers.
+- [x] **Nutrient tiles are now collapsible** — the 5-tile grid (Energy,
+  Protein, Fat, Carbs, Fiber) is hidden by default so the day's logged
+  items are the first thing visible. A new `#day-totals-section` wrapper
+  (`index.html`) sits around `#day-panel-totals` specifically so the
+  collapse state survives `renderDayPanel()`'s `innerHTML` rebuild on every
+  day switch/refresh — only the tiles inside get rebuilt, the wrapper's
+  `collapsed` class doesn't. Its always-visible toggle header shows a
+  compact Energy summary ("754 / 2961 kcal" + a mini `.tile-bar`, same
+  fill-percent/`over-goal` logic as the full tile, factored into
+  `tileBarFillPercent()` in `calendar.js`) with a rotating chevron.
+  Collapsed/expanded choice persists across reloads via a new
+  `totalsCollapsed` key in `DEFAULT_SETTINGS` (`shared.js`) — same
+  `saveSettings()`/`localStorage` pattern as theme/time-format/etc. Defaults
+  to collapsed for a first-ever visit. Verified fresh-load-collapsed,
+  toggle open/close, persistence across reload, and staying expanded (with
+  correct updated values) when switching days — all against the real
+  account.
 - [ ] **Remember last day-part override per session** — if the user overrides
   the guessed day-part once, reuse that override for subsequent logs in the
   same sitting instead of re-guessing each time.

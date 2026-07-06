@@ -170,7 +170,10 @@ document.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
 
   if (e.key === 'Escape') {
-    if (!$('#palette-modal').classList.contains('hidden')) {
+    if (!$('#calendar-popover').classList.contains('hidden')) {
+      window.closeCalendarPopover();
+      e.preventDefault();
+    } else if (!$('#palette-modal').classList.contains('hidden')) {
       closeCommandPalette();
       e.preventDefault();
     } else if (!$('#shortcuts-modal').classList.contains('hidden')) {
