@@ -26,6 +26,12 @@ function setScanError(text) {
 }
 
 async function openScanModal() {
+  // Defensive: if a previous attempt left a camera stream open (e.g. it errored out
+  // before reaching stopScan()), release it first — a still-held track can make the
+  // getUserMedia() call inside getCameras() below fail outright with no usable camera
+  // list at all, which looks like "no dropdown + generic failure" from the outside.
+  await stopScan();
+
   $('#scan-modal').classList.remove('hidden');
   $('#scan-error').classList.add('hidden');
   $('#scan-camera-select').classList.add('hidden');
@@ -114,15 +120,19 @@ async function onScanSuccess(decodedText) {
 function handleScanError(err) {
   const name = err && err.name;
   const msg = String((err && err.message) || err || '');
+  let text;
   if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || /permission/i.test(msg)) {
-    setScanError('Camera access was denied. Allow camera access in your browser settings, or type the barcode digits manually below.');
+    text = 'Camera access was denied. Allow camera access in your browser settings, or type the barcode digits manually below.';
   } else if (name === 'NotFoundError' || /not\s*found/i.test(msg)) {
-    setScanError('No camera was found on this device. Type the barcode digits manually instead.');
+    text = 'No camera was found on this device. Type the barcode digits manually instead.';
   } else if (name === 'NotReadableError' || name === 'TrackStartError' || /in use/i.test(msg)) {
-    setScanError("Couldn't access the camera (it may be in use by another app). Type the barcode digits manually instead.");
+    text = "Couldn't access the camera (it may be in use by another app). Type the barcode digits manually instead.";
   } else {
-    setScanError('Could not start the camera. Type the barcode digits manually instead.');
+    text = 'Could not start the camera. Type the barcode digits manually instead.';
   }
+  // Always append the raw error so it's visible on-device without remote debugging —
+  // the categorized message above can be wrong (browsers don't always set err.name).
+  setScanError(`${text} (${name || 'Error'}: ${msg})`);
   stopScan();
 }
 
