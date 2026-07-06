@@ -12,9 +12,30 @@ const NUTRIENT_TILES = [
   { key: 'fibt_g', label: 'Fiber', unit: 'g' }
 ];
 
+const WEEKDAY_LABELS = {
+  mon: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  sun: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+};
+
+function renderWeekdayHeader() {
+  const labels = WEEKDAY_LABELS[currentSettings.firstDayOfWeek] || WEEKDAY_LABELS.mon;
+  $('#calendar-weekdays').innerHTML = labels.map((l) => `<span>${l}</span>`).join('');
+}
+
+// Column index (0-6) of a JS Date#getDay() value, given the configured first day of the week.
+function weekdayColumn(getDay) {
+  return currentSettings.firstDayOfWeek === 'sun' ? getDay : (getDay + 6) % 7;
+}
+
 window.initCalendar = function initCalendar() {
   if (calendarInitialized) return;
   calendarInitialized = true;
+
+  document.addEventListener('vivica:settings-changed', () => {
+    renderWeekdayHeader();
+    renderCalendarMonth();
+    if (calendarSelectedDate) renderDayPanel(calendarSelectedDate, calendarCache[calendarSelectedDate]);
+  });
 
   $('#cal-prev').addEventListener('click', () => {
     calendarRefDate = new Date(calendarRefDate.getFullYear(), calendarRefDate.getMonth() - 1, 1);
@@ -33,7 +54,11 @@ window.initCalendar = function initCalendar() {
   $('#day-panel-refresh').addEventListener('click', () => {
     if (calendarSelectedDate) fetchDayStats(calendarSelectedDate, { force: true }).then(() => selectDay(calendarSelectedDate));
   });
+  $('#day-panel-log').addEventListener('click', () => {
+    if (calendarSelectedDate && window.startLogForDayPart) window.startLogForDayPart(calendarSelectedDate);
+  });
 
+  renderWeekdayHeader();
   renderCalendarMonth();
   selectDay(todayStr());
 };
@@ -52,7 +77,7 @@ function renderCalendarMonth() {
 
   $('#cal-month-label').textContent = calendarRefDate.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
-  const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7; // Monday = 0
+  const firstWeekday = weekdayColumn(new Date(year, month, 1).getDay());
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = todayStr();
 
@@ -153,9 +178,7 @@ async function selectDay(ds) {
 
   $('#day-panel-empty').classList.add('hidden');
   $('#day-panel-content').classList.remove('hidden');
-  $('#day-panel-date').textContent = new Date(ds + 'T00:00:00').toLocaleDateString('en-GB', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-  });
+  $('#day-panel-date').textContent = formatDateDisplay(ds);
   $('#day-panel-items').innerHTML = '<p class="muted">Loading…</p>';
   $('#day-panel-totals').innerHTML = '';
 
@@ -167,6 +190,8 @@ async function selectDay(ds) {
 function renderDayPanel(ds, data) {
   const totalsEl = $('#day-panel-totals');
   const itemsEl = $('#day-panel-items');
+
+  if (!data) return; // not loaded yet; the in-flight fetch will call this again on resolution
 
   if (data?.error) {
     totalsEl.innerHTML = '';

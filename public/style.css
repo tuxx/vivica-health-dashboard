@@ -191,17 +191,44 @@ button { cursor: pointer; }
   color: var(--text);
 }
 .btn-ghost:hover { border-color: var(--accent); color: var(--accent-dark); }
-.btn-ghost.small { padding: 0.35rem 0.6rem; font-size: 0.82rem; }
+.btn-ghost.small, .btn-primary.small { padding: 0.35rem 0.6rem; font-size: 0.82rem; }
 .btn-ghost.btn-icon { padding: 0.35rem 0.55rem; line-height: 1; font-size: 1.1rem; }
 
 .btn-block { width: 100%; }
 
 .time-input { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.time-input.invalid { border-color: var(--danger); }
+.time-input-row { display: flex; gap: 0.5rem; }
+.time-input-row .time-input { flex: 1; }
+.ampm-select { width: auto; flex-shrink: 0; }
+
+.settings-panel { max-width: 480px; }
+.settings-panel h3:first-child { margin-top: 0; }
+
+.panel-full { grid-column: 1 / -1; }
+
+/* ---------- profile ---------- */
+
+.kv-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 1rem; padding: 0.4rem 0; border-bottom: 1px solid var(--border);
+}
+.kv-row:last-child { border-bottom: none; }
+.kv-row .k { color: var(--muted); font-size: 0.82rem; flex-shrink: 0; }
+.kv-row .v { font-weight: 500; text-align: right; overflow-wrap: anywhere; }
+
+.profile-avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  object-fit: cover; background: var(--accent-faded);
+  margin-bottom: 0.9rem;
+}
+.profile-subsection { margin-bottom: 1.1rem; }
+.profile-subsection:last-child { margin-bottom: 0; }
 
 /* ---------- layout helpers ---------- */
 
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
-@media (max-width: 900px) { .grid, .calendar-layout { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
 
 .panel {
   background: var(--surface);
@@ -305,6 +332,18 @@ button { cursor: pointer; }
 }
 .modal-actions { justify-content: flex-end; margin-top: 1rem; }
 
+.modal-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.9rem; }
+.modal-header h3 { flex: 1; margin: 0; }
+
+.log-modal-box {
+  width: min(560px, 94vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+#log-back-to-search { margin-bottom: 0.9rem; }
+
 /* ---------- calendar ---------- */
 
 .calendar-layout { display: grid; grid-template-columns: 1.1fr 1fr; gap: 1.5rem; align-items: start; }
@@ -374,3 +413,67 @@ button { cursor: pointer; }
   font-size: 1rem; padding: 0.2rem 0.4rem; border-radius: 6px; flex-shrink: 0;
 }
 .day-item .delete-item:hover { background: var(--danger-faded); }
+
+/* ---------- mobile ---------- */
+
+@media (max-width: 900px) {
+  /* .calendar-layout's own base rule is defined further up the file (in the "calendar"
+     section) than the .grid stacking rule above, so it would otherwise win on source
+     order alone regardless of viewport width — this has to stay the last word on it. */
+  .calendar-layout { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  .shell { flex-direction: column; }
+
+  /* Two rows: [brand ... logout] on top, then a full-width tab bar below it.
+     Trying to fit brand text + 4 tabs + logout in one row leaves the tabs almost no
+     width (verified with a real headless-browser layout check, not just eyeballing). */
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.8rem;
+    gap: 0.5rem 0.75rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar .brand { flex-shrink: 0; order: 1; }
+  .sidebar-footer { order: 2; }
+  #tabs { order: 3; flex: 1 1 100%; }
+
+  #tabs { flex-direction: row; gap: 0.2rem; overflow-x: auto; }
+  .nav-item {
+    width: auto; flex-direction: column; gap: 0.15rem;
+    padding: 0.4rem 0.5rem; font-size: 0.68rem; white-space: nowrap;
+  }
+  .nav-item span { flex: initial; }
+  .nav-item svg { width: 18px; height: 18px; }
+  .shortcut-hint { display: none; }
+
+  .sidebar-footer {
+    flex-direction: row; align-items: center; gap: 0.5rem;
+    border-top: none; padding-top: 0; flex-shrink: 0;
+  }
+  #user-email { display: none; } /* still visible on the Profile tab */
+  .sidebar-footer .btn-block { width: auto; padding: 0.4rem 0.7rem; font-size: 0.78rem; }
+
+  main { padding: 1rem; }
+}
+
+@media (max-width: 480px) {
+  .row:not(.segmented):not(.modal-actions) { flex-direction: column; gap: 0; }
+
+  .day-panel-header { flex-wrap: wrap; }
+  .day-panel-header h2 { flex: 1 1 100%; }
+
+  .calendar-toolbar { gap: 0.35rem; }
+  .cal-day { min-height: 52px; padding: 0.25rem 0.3rem; }
+  .cal-day .day-kcal { font-size: 0.68rem; }
+
+  .result-list { max-height: 50vh; }
+
+  .login-card { padding: 1.5rem 1.25rem; }
+}

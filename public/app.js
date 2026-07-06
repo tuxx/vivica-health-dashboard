@@ -2,26 +2,74 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 let dayParts = [];
-let selectedLogItem = null;   // merged search-result + item_data, for the "Log food" tab
+let selectedLogItem = null;   // merged search-result + item_data, for the log-food modal
 let mealItems = [];           // items being assembled into a new meal
 let pendingMealProduct = null; // product awaiting a quantity before being added to mealItems
-let logContext = null;        // { date, day_part } set by the calendar's "+" button, consumed by selectLogItem
+let logContext = null;        // { date, day_part, dayPartExplicit } for the currently open log-food modal
 
-// ---------- 24h time inputs (guaranteed HH:MM regardless of browser/OS locale) ----------
+// ---------- time inputs: HH:MM text entry, 24h or 12h+AM/PM per the time-format setting ----------
+// Each input tracks its ground-truth value in 24h form via `dataset.value24`, so switching the
+// setting mid-session re-renders correctly and API payloads always send 24h HH:MM regardless of
+// how the user typed it.
 
+function ampmSelectFor(el) {
+  return el.parentElement.querySelector('.ampm-select');
+}
+function isValidTime24(v) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
+}
+function isValidTime12(v) {
+  return /^(0[1-9]|1[0-2]):[0-5]\d$/.test(v);
+}
+function is12hMode(el) {
+  const sel = ampmSelectFor(el);
+  return !!(sel && currentSettings.timeFormat === '12h');
+}
+function isValidTimeInput(el) {
+  return is12hMode(el) ? isValidTime12(el.value) : isValidTime24(el.value);
+}
+// Converts the input's current displayed value (+ AM/PM select) to 24h HH:MM for the API.
+function timeInputToApi(el) {
+  if (!is12hMode(el)) return el.value;
+  const [h, m] = el.value.split(':').map(Number);
+  let h24 = h % 12;
+  if (ampmSelectFor(el).value === 'PM') h24 += 12;
+  return `${String(h24).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
+}
+// Sets the input (+ AM/PM select) from a 24h HH:MM ground-truth value.
+function setTimeInputValue(el, hhmm24) {
+  el.dataset.value24 = hhmm24;
+  if (!is12hMode(el) || !isValidTime24(hhmm24)) { el.value = hhmm24; return; }
+  const [H, M] = hhmm24.split(':').map(Number);
+  let h12 = H % 12; if (h12 === 0) h12 = 12;
+  el.value = `${String(h12).padStart(2, '0')}:${String(M).padStart(2, '0')}`;
+  ampmSelectFor(el).value = H >= 12 ? 'PM' : 'AM';
+}
+function refreshTimeInputMode(el) {
+  const sel = ampmSelectFor(el);
+  if (!sel) return;
+  sel.classList.toggle('hidden', currentSettings.timeFormat !== '12h');
+  if (el.dataset.value24) setTimeInputValue(el, el.dataset.value24);
+}
 function setupTimeInput(el) {
+  refreshTimeInputMode(el);
   el.addEventListener('input', () => {
     let digits = el.value.replace(/\D/g, '').slice(0, 4);
     el.value = digits.length >= 3 ? digits.slice(0, 2) + ':' + digits.slice(2) : digits;
+    if (isValidTimeInput(el)) el.dataset.value24 = timeInputToApi(el);
+  });
+  const sel = ampmSelectFor(el);
+  if (sel) sel.addEventListener('change', () => {
+    if (isValidTimeInput(el)) el.dataset.value24 = timeInputToApi(el);
   });
   el.addEventListener('blur', () => {
-    el.classList.toggle('invalid', el.value !== '' && !isValidTime(el.value));
+    el.classList.toggle('invalid', el.value !== '' && !isValidTimeInput(el));
   });
 }
-function isValidTime(v) {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
-}
 $$('.time-input').forEach(setupTimeInput);
+document.addEventListener('vivica:settings-changed', () => {
+  $$('.time-input').forEach(refreshTimeInputMode);
+});
 
 // ---------- auth / bootstrap ----------
 
@@ -39,15 +87,15 @@ async function enterApp() {
   dayParts = me.day_parts;
   window.dayParts = dayParts;
   fillDayPartSelect($('#log-day-part'));
-  fillDayPartSelect($('#meal-day-part'));
+
+  window.currentUser = me.user || null;
 
   $('#user-email').textContent = me.user?.email || '';
   $('#shell').classList.remove('hidden');
   $('#login-view').classList.add('hidden');
   showTab('calendar');
   if (window.initCalendar) window.initCalendar();
-
-  $('#meal-day-part').value = guessDayPartForTime(dayParts);
+  if (window.initProfile) window.initProfile();
 }
 
 function fillDayPartSelect(select) {
@@ -98,28 +146,28 @@ $('#logout-btn').addEventListener('click', async () => {
 // ---------- tabs ----------
 
 $$('#tabs button[data-tab]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    if (btn.dataset.tab !== 'log') logContext = null;
-    showTab(btn.dataset.tab);
-  });
+  btn.addEventListener('click', () => showTab(btn.dataset.tab));
 });
 
 function showTab(name) {
   $$('#tabs button[data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
-  $('#log-view').classList.toggle('hidden', name !== 'log');
-  $('#meals-view').classList.toggle('hidden', name !== 'meals');
   $('#calendar-view').classList.toggle('hidden', name !== 'calendar');
+  $('#settings-view').classList.toggle('hidden', name !== 'settings');
+  $('#profile-view').classList.toggle('hidden', name !== 'profile');
 }
 
 // ---------- keyboard shortcuts ----------
 // Single-key shortcuts, active whenever focus isn't in a text field/select, so
-// they never fight with typing. "N" is the fast path for the everyday action
-// (log a food/meal): jumps straight to the Log food tab with the search box focused.
+// they never fight with typing. "N" is the fast path for the everyday action:
+// opens the quick-log modal for the selected calendar day (or today).
 document.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
 
   if (e.key === 'Escape') {
-    if (!$('#qty-modal').classList.contains('hidden')) {
+    if (!$('#log-modal').classList.contains('hidden')) {
+      closeLogModal();
+      e.preventDefault();
+    } else if (!$('#qty-modal').classList.contains('hidden')) {
       $('#qty-modal-cancel').click();
       e.preventDefault();
     } else {
@@ -136,9 +184,7 @@ document.addEventListener('keydown', (e) => {
   switch (e.key.toLowerCase()) {
     case 'n':
     case 'l':
-      logContext = null;
-      showTab('log');
-      $('#search-input').focus();
+      openLogModal(typeof calendarSelectedDate !== 'undefined' && calendarSelectedDate ? calendarSelectedDate : todayStr());
       e.preventDefault();
       break;
     case 'c':
@@ -146,11 +192,24 @@ document.addEventListener('keydown', (e) => {
       e.preventDefault();
       break;
     case 'b':
-      showTab('meals');
+      openLogModal(typeof calendarSelectedDate !== 'undefined' && calendarSelectedDate ? calendarSelectedDate : todayStr());
+      openMealBuilder();
+      e.preventDefault();
+      break;
+    case 's':
+      showTab('settings');
+      e.preventDefault();
+      break;
+    case 'p':
+      showTab('profile');
       e.preventDefault();
       break;
     case '/': {
-      const visibleSearch = $('#log-view:not(.hidden) #search-input') || $('#meals-view:not(.hidden) #meal-search-input');
+      let visibleSearch = null;
+      if (!$('#log-modal').classList.contains('hidden')) {
+        if (!$('#log-modal-search-step').classList.contains('hidden')) visibleSearch = $('#search-input');
+        else if (!$('#log-modal-meal-step').classList.contains('hidden')) visibleSearch = $('#meal-search-input');
+      }
       if (visibleSearch) { visibleSearch.focus(); e.preventDefault(); }
       break;
     }
@@ -161,16 +220,54 @@ document.addEventListener('keydown', (e) => {
 $('#qty-modal-amount').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); $('#qty-modal-confirm').click(); }
 });
+$('#qty-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) $('#qty-modal-cancel').click();
+});
 
-// Called from the calendar's day panel "+" buttons to jump into the Log food tab
-// with the date/day-part already decided, instead of defaulting to today/blank.
+// ---------- Log food modal ----------
+// Opened from the calendar: either a specific day-part's "+" (dayPart explicit, never
+// overridden below) or the day panel's general "+ Log food" button / the N/L shortcut
+// (dayPart guessed from the current time, but still overridable by the item's own
+// server-suggested day-part once one is picked — see selectLogItem).
+
 window.startLogForDayPart = function startLogForDayPart(date, dayPart) {
-  logContext = { date, day_part: dayPart };
-  showTab('log');
-  $('#search-input').focus();
+  openLogModal(date, dayPart);
 };
 
-// ---------- Log food tab: search ----------
+function openLogModal(date, dayPart) {
+  logContext = { date, day_part: dayPart || guessDayPartForTime(dayParts), dayPartExplicit: !!dayPart };
+  selectedLogItem = null;
+  backToSearchStep();
+  $('#log-modal-title').textContent = `Log food — ${formatDateDisplay(date)}`;
+  $('#log-modal').classList.remove('hidden');
+  $('#search-input').focus();
+}
+
+function closeLogModal() {
+  $('#log-modal').classList.add('hidden');
+  logContext = null;
+  selectedLogItem = null;
+  mealItems = [];
+}
+
+function backToSearchStep() {
+  $('#log-modal-form-step').classList.add('hidden');
+  $('#log-modal-meal-step').classList.add('hidden');
+  $('#log-modal-search-step').classList.remove('hidden');
+  $('#log-error').classList.add('hidden');
+  $('#log-success').classList.add('hidden');
+  $('#search-input').value = '';
+  $('#search-results').innerHTML = '';
+  $('#search-input').focus();
+}
+
+$('#log-modal-close').addEventListener('click', closeLogModal);
+$('#log-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeLogModal();
+});
+$('#log-back-to-search').addEventListener('click', backToSearchStep);
+
+// ---------- Log food modal: search ----------
 
 $('#search-input').addEventListener('input', debounce((e) => {
   const val = e.target.value;
@@ -223,14 +320,13 @@ async function loadQuickList(path) {
 }
 
 async function selectLogItem(item) {
-  const ctx = logContext;
-  logContext = null;
+  const ctx = logContext || { date: todayStr(), day_part: guessDayPartForTime(dayParts), dayPartExplicit: false };
 
   selectedLogItem = {
     ...item,
-    date: ctx?.date || todayStr(),
+    date: ctx.date,
     time: nowTimeStr(),
-    day_part: ctx?.day_part || guessDayPartForTime(dayParts),
+    day_part: ctx.day_part,
     amount_value: '',
     amount_pieces: '',
     selected_conversion_id: '',
@@ -245,7 +341,7 @@ async function selectLogItem(item) {
       body: { type, id: item.id }
     });
     selectedLogItem = Object.assign({}, itemData, selectedLogItem);
-    if (!ctx?.day_part && itemData.suggested_day_part) selectedLogItem.day_part = itemData.suggested_day_part;
+    if (!ctx.dayPartExplicit && itemData.suggested_day_part) selectedLogItem.day_part = itemData.suggested_day_part;
     if (itemData.conversions && itemData.conversions.length) {
       selectedLogItem.specify_method = 'conversion';
       selectedLogItem.selected_conversion_id = itemData.suggested_nutrient_conversion_id || itemData.conversions[0].id;
@@ -260,14 +356,15 @@ async function selectLogItem(item) {
 }
 
 function renderLogForm() {
-  $('#log-empty').classList.add('hidden');
-  $('#log-form').classList.remove('hidden');
+  $('#log-modal-search-step').classList.add('hidden');
+  $('#log-modal-meal-step').classList.add('hidden');
+  $('#log-modal-form-step').classList.remove('hidden');
   $('#log-error').classList.add('hidden');
   $('#log-success').classList.add('hidden');
 
   $('#log-item-name').textContent = selectedLogItem.description;
   $('#log-date').value = selectedLogItem.date;
-  $('#log-time').value = selectedLogItem.time;
+  setTimeInputValue($('#log-time'), selectedLogItem.time);
   $('#log-day-part').value = selectedLogItem.day_part || dayParts[0];
 
   const isMeal = selectedLogItem.type_record === 'meal';
@@ -313,8 +410,8 @@ $('#log-form').addEventListener('submit', async (e) => {
   errorEl.classList.add('hidden');
   successEl.classList.add('hidden');
 
-  if (!isValidTime($('#log-time').value)) {
-    errorEl.textContent = 'Time must be in 24h HH:MM format.';
+  if (!isValidTimeInput($('#log-time'))) {
+    errorEl.textContent = 'Time must be in HH:MM format.';
     errorEl.classList.remove('hidden');
     return;
   }
@@ -323,7 +420,7 @@ $('#log-form').addEventListener('submit', async (e) => {
   const payload = {
     ...selectedLogItem,
     date: $('#log-date').value,
-    time: $('#log-time').value,
+    time: timeInputToApi($('#log-time')),
     day_part: $('#log-day-part').value,
     specify_method: method,
     meal_amount: Number($('#log-meal-amount').value) || 1,
@@ -337,10 +434,13 @@ $('#log-form').addEventListener('submit', async (e) => {
     await api('/nutrition/submit_item', { method: 'POST', body: payload });
     successEl.textContent = `Logged ${selectedLogItem.description}.`;
     successEl.classList.remove('hidden');
-    $('#log-form').classList.add('hidden');
-    $('#log-empty').classList.remove('hidden');
     if (window.invalidateCalendarDay) window.invalidateCalendarDay(payload.date);
     selectedLogItem = null;
+    // Brief confirmation, then back to search so another item can be logged for the
+    // same day/day-part without re-opening the modal.
+    setTimeout(() => {
+      if (!$('#log-modal').classList.contains('hidden')) backToSearchStep();
+    }, 900);
   } catch (err) {
     errorEl.textContent = err.data?.errors ? Object.values(err.data.errors).flat().join(' ') : err.message;
     errorEl.classList.remove('hidden');
@@ -349,7 +449,27 @@ $('#log-form').addEventListener('submit', async (e) => {
   }
 });
 
-// ---------- Build a meal tab ----------
+// ---------- Build a meal (inside the log-food modal) ----------
+// "+ New meal" swaps the search step for a meal-builder step: search/add products,
+// name it, save. Saving posts the meal then immediately feeds it into the normal
+// selectLogItem()/renderLogForm() flow so it can be logged for today in one motion.
+
+$('#meal-builder-open').addEventListener('click', openMealBuilder);
+$('#meal-builder-cancel').addEventListener('click', backToSearchStep);
+
+function openMealBuilder() {
+  mealItems = [];
+  $('#meal-name').value = '';
+  $('#meal-favorite').checked = false;
+  $('#meal-search-input').value = '';
+  $('#meal-search-results').innerHTML = '';
+  $('#meal-error').classList.add('hidden');
+  renderMealItems();
+
+  $('#log-modal-search-step').classList.add('hidden');
+  $('#log-modal-meal-step').classList.remove('hidden');
+  $('#meal-search-input').focus();
+}
 
 $('#meal-search-input').addEventListener('input', debounce((e) => {
   const val = e.target.value;
@@ -430,51 +550,62 @@ function renderMealItems() {
 
 function updateMealSubmitState() {
   const name = $('#meal-name').value.trim();
-  const dayPart = $('#meal-day-part').value;
-  $('#meal-submit').disabled = !(mealItems.length && name.length >= 3 && dayPart);
+  $('#meal-save').disabled = !(mealItems.length && name.length >= 3);
 }
 $('#meal-name').addEventListener('input', updateMealSubmitState);
-$('#meal-day-part').addEventListener('change', updateMealSubmitState);
-
-$('#meal-time').value = nowTimeStr();
 
 $('#meal-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const errorEl = $('#meal-error');
-  const successEl = $('#meal-success');
   errorEl.classList.add('hidden');
-  successEl.classList.add('hidden');
 
-  if (!isValidTime($('#meal-time').value)) {
-    errorEl.textContent = 'Time must be in 24h HH:MM format.';
-    errorEl.classList.remove('hidden');
-    return;
-  }
-
+  const ctx = logContext || { date: todayStr(), day_part: guessDayPartForTime(dayParts), dayPartExplicit: false };
+  const name = $('#meal-name').value.trim();
   const payload = {
-    name: $('#meal-name').value.trim(),
-    day_part: $('#meal-day-part').value,
-    time: $('#meal-time').value,
+    name,
+    day_part: ctx.day_part,
+    time: nowTimeStr(),
     is_favorite: $('#meal-favorite').checked,
     items: mealItems
   };
 
   try {
-    $('#meal-submit').disabled = true;
+    $('#meal-save').disabled = true;
     await api('/submit_nutrient_meal', { method: 'POST', body: payload });
-    successEl.textContent = `Meal "${payload.name}" saved — search for it in the Log food tab to add it to a day.`;
-    successEl.classList.remove('hidden');
-    mealItems = [];
-    $('#meal-form').reset();
-    $('#meal-time').value = nowTimeStr();
-    renderMealItems();
+    await findAndSelectCreatedMeal(name);
   } catch (err) {
     errorEl.textContent = err.data?.errors ? Object.values(err.data.errors).flat().join(' ') : err.message;
     errorEl.classList.remove('hidden');
   } finally {
-    updateMealSubmitState();
+    $('#meal-save').disabled = false;
   }
 });
+
+// The meal-create endpoint doesn't hand back an id we can log directly, so find the
+// meal we just created the same way a user would: search for it by name (it's the
+// same search/select pipeline used for every other item).
+async function findAndSelectCreatedMeal(name) {
+  const errorEl = $('#meal-error');
+  try {
+    const res = await api('/nutrition/search', {
+      method: 'POST',
+      body: { search: name, brand: '', supermarket: null, page: 1, type: '', meal_tab: 'all' }
+    });
+    const items = Array.isArray(res.data) ? res.data : Object.values(res.data || {});
+    const match = items.find((it) => it.type_record === 'meal' && it.description === name)
+      || items.find((it) => it.type_record === 'meal');
+    if (!match) {
+      errorEl.textContent = `Meal "${name}" was saved, but couldn't be found again to log now — search for it manually.`;
+      errorEl.classList.remove('hidden');
+      return;
+    }
+    mealItems = [];
+    await selectLogItem(match);
+  } catch (err) {
+    errorEl.textContent = `Meal "${name}" was saved, but logging it now failed: ${err.message}`;
+    errorEl.classList.remove('hidden');
+  }
+}
 
 renderMealItems();
 boot();

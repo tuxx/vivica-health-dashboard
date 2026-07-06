@@ -1,4 +1,57 @@
-// Shared helpers used by app.js and calendar.js
+// Shared helpers used by app.js, calendar.js and settings.js
+
+// ---------- persisted user preferences ----------
+
+const SETTINGS_KEY = 'vivica-dashboard-settings';
+const DEFAULT_SETTINGS = {
+  theme: 'system',        // 'light' | 'dark' | 'system'
+  timeFormat: '24h',      // '24h' | '12h'
+  firstDayOfWeek: 'mon',  // 'mon' | 'sun'
+  dateFormat: 'long'      // 'long' | 'dmy' | 'mdy' | 'ymd'
+};
+
+function loadSettings() {
+  try {
+    return Object.assign({}, DEFAULT_SETTINGS, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
+  } catch (e) {
+    return Object.assign({}, DEFAULT_SETTINGS);
+  }
+}
+
+let currentSettings = loadSettings();
+
+function applyTheme(theme) {
+  if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+  else delete document.documentElement.dataset.theme; // 'system' → let prefers-color-scheme decide
+}
+
+function saveSettings(patch) {
+  currentSettings = Object.assign({}, currentSettings, patch);
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(currentSettings));
+  applyTheme(currentSettings.theme);
+  document.dispatchEvent(new CustomEvent('vivica:settings-changed', { detail: currentSettings }));
+  return currentSettings;
+}
+
+applyTheme(currentSettings.theme); // apply as early as possible (shared.js loads before app.js/calendar.js)
+
+// Formats a 'YYYY-MM-DD' string per the dateFormat setting.
+function formatDateDisplay(ds) {
+  const d = new Date(ds + 'T00:00:00');
+  if (currentSettings.dateFormat === 'long') {
+    return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  switch (currentSettings.dateFormat) {
+    case 'mdy': return `${mm}/${dd}/${yyyy}`;
+    case 'ymd': return `${yyyy}-${mm}-${dd}`;
+    default: return `${dd}/${mm}/${yyyy}`; // 'dmy'
+  }
+}
+
+
 
 async function api(path, options = {}) {
   const res = await fetch('/api' + path, {

@@ -169,6 +169,30 @@ async function handleMe(req, res) {
   sendJson(res, 200, payload);
 }
 
+async function handleMedicalForm(req, res) {
+  if (!requireAuth(res)) return;
+  const cacheKey = 'auth:medical_form';
+  const cached = getCached(cacheKey, 60 * 60 * 1000);
+  if (cached) { sendJson(res, 200, cached); return; }
+
+  const result = await upstream('GET', '/auth/medical_form');
+  if (!result.ok) { sendJson(res, result.status, result.data); return; }
+  setCached(cacheKey, result.data);
+  sendJson(res, 200, result.data);
+}
+
+async function handleCompanyInfo(req, res) {
+  if (!requireAuth(res)) return;
+  const cacheKey = 'auth:company_info';
+  const cached = getCached(cacheKey, 60 * 60 * 1000);
+  if (cached) { sendJson(res, 200, cached); return; }
+
+  const result = await upstream('GET', '/auth/company_info');
+  if (!result.ok) { sendJson(res, result.status, result.data); return; }
+  setCached(cacheKey, result.data);
+  sendJson(res, 200, result.data);
+}
+
 async function handleNutritionSearch(req, res) {
   if (!requireAuth(res)) return;
   const body = await readJsonBody(req);
@@ -312,6 +336,8 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/login' && req.method === 'POST') return await handleLogin(req, res);
     if (pathname === '/api/logout' && req.method === 'POST') return await handleLogout(req, res);
     if (pathname === '/api/me' && req.method === 'GET') return await handleMe(req, res);
+    if (pathname === '/api/medical_form' && req.method === 'GET') return await handleMedicalForm(req, res);
+    if (pathname === '/api/company_info' && req.method === 'GET') return await handleCompanyInfo(req, res);
     if (pathname === '/api/nutrition/search' && req.method === 'POST') return await handleNutritionSearch(req, res);
     if (pathname === '/api/nutrition/item_data' && req.method === 'POST') return await handleItemData(req, res);
     if (pathname === '/api/nutrition/submit_item' && req.method === 'POST') return await handleSubmitItem(req, res);

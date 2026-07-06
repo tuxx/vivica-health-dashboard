@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Vivica Health Dashboard</title>
   <link rel="stylesheet" href="/style.css" />
+  <script>
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem('vivica-dashboard-settings') || '{}');
+        if (s.theme === 'light' || s.theme === 'dark') document.documentElement.dataset.theme = s.theme;
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <section id="login-view" class="login-screen">
@@ -40,15 +48,15 @@
           <span>Calendar</span>
           <kbd class="shortcut-hint">C</kbd>
         </button>
-        <button data-tab="log" class="nav-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-          <span>Log food</span>
-          <kbd class="shortcut-hint">N</kbd>
+        <button data-tab="profile" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.964 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+          <span>Profile</span>
+          <kbd class="shortcut-hint">P</kbd>
         </button>
-        <button data-tab="meals" class="nav-item">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-          <span>Build a meal</span>
-          <kbd class="shortcut-hint">B</kbd>
+        <button data-tab="settings" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.02-.397-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a7.66 7.66 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+          <span>Settings</span>
+          <kbd class="shortcut-hint">S</kbd>
         </button>
       </nav>
 
@@ -73,9 +81,7 @@
               <button id="cal-next" class="btn-ghost btn-icon" aria-label="Next month">›</button>
               <button id="cal-today" class="btn-ghost small">Today</button>
             </div>
-            <div class="calendar-weekdays">
-              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
-            </div>
+            <div class="calendar-weekdays" id="calendar-weekdays"></div>
             <div id="calendar-grid" class="calendar-grid"></div>
           </div>
 
@@ -84,6 +90,7 @@
             <div id="day-panel-content" class="hidden">
               <div class="day-panel-header">
                 <h2 id="day-panel-date"></h2>
+                <button id="day-panel-log" class="btn-primary small" title="Log food for this day (N)">+ Log food</button>
                 <button id="day-panel-refresh" class="btn-ghost btn-icon" title="Refresh from server">⟳</button>
               </div>
               <div id="day-panel-totals" class="day-totals"></div>
@@ -93,110 +100,165 @@
         </div>
       </section>
 
-      <section id="log-view" class="view hidden">
+      <section id="profile-view" class="view hidden">
         <header class="view-header">
-          <h1>Log food</h1>
-          <p class="muted">Search the product database, or pick from what you've logged before.</p>
+          <h1>Profile</h1>
+          <p class="muted">Read-only — pulled from your Vivica account. No editing endpoint has been identified yet.</p>
         </header>
 
-        <div class="grid">
+        <div id="profile-loading" class="muted">Loading…</div>
+        <div id="profile-error" class="error hidden"></div>
+
+        <div id="profile-content" class="grid hidden">
           <div class="panel">
-            <h2>Find food</h2>
-            <div class="quick-lists">
-              <button id="show-recent" class="btn-ghost small">Recent</button>
-              <button id="show-frequent" class="btn-ghost small">Frequent</button>
-            </div>
-            <input type="search" id="search-input" placeholder="Search products, meals, supplements..." />
-            <div id="search-results" class="result-list"></div>
+            <h2>My info</h2>
+            <div id="profile-my-info"></div>
           </div>
 
-          <div class="panel" id="log-form-panel">
-            <h2>Log it</h2>
-            <div id="log-empty" class="muted">Pick a food item on the left.</div>
-            <form id="log-form" class="hidden">
-              <p id="log-item-name" class="item-name"></p>
+          <div class="panel">
+            <h2>Care team / practice</h2>
+            <div id="profile-company-info"></div>
+          </div>
 
-              <div class="row">
-                <label>Date<input type="date" id="log-date" lang="en-GB" required /></label>
-                <label>Time (24h)<input type="text" id="log-time" class="time-input" inputmode="numeric" maxlength="5" placeholder="HH:MM" required /></label>
-              </div>
-              <label>Part of day
-                <select id="log-day-part" required></select>
-              </label>
-
-              <div id="log-meal-amount-wrap" class="hidden">
-                <label>Meal portion
-                  <select id="log-meal-amount">
-                    <option value="1">Whole meal (1×)</option>
-                    <option value="0.75">3/4</option>
-                    <option value="0.5">1/2</option>
-                    <option value="0.25">1/4</option>
-                  </select>
-                </label>
-              </div>
-
-              <div id="log-amount-wrap">
-                <div class="row segmented" id="log-method-row">
-                  <label><input type="radio" name="specify_method" value="manual" checked /> Manual amount</label>
-                  <label><input type="radio" name="specify_method" value="conversion" /> By serving</label>
-                </div>
-
-                <div id="log-manual-wrap">
-                  <label id="log-manual-label">Amount<input type="number" step="any" id="log-amount-value" /></label>
-                </div>
-
-                <div id="log-conversion-wrap" class="hidden">
-                  <label>Serving
-                    <select id="log-conversion-id"></select>
-                  </label>
-                  <label>Number of servings<input type="number" step="any" id="log-amount-pieces" value="1" /></label>
-                </div>
-              </div>
-
-              <button type="submit" id="log-submit" class="btn-primary btn-block">Log it</button>
-              <p id="log-error" class="error hidden"></p>
-              <p id="log-success" class="success hidden"></p>
-            </form>
+          <div class="panel panel-full">
+            <h2>Medical form</h2>
+            <div id="profile-medical-form"></div>
           </div>
         </div>
       </section>
 
-      <section id="meals-view" class="view hidden">
+      <section id="settings-view" class="view hidden">
         <header class="view-header">
-          <h1>Build a meal</h1>
-          <p class="muted">Combine products into a reusable meal. Saved meals sync with the Vivica app and show up as "Meal" when logging food.</p>
+          <h1>Settings</h1>
+          <p class="muted">Preferences are stored in this browser only.</p>
         </header>
 
-        <div class="grid">
-          <div class="panel">
-            <h2>New meal</h2>
-            <form id="meal-form">
-              <label>Name<input type="text" id="meal-name" required minlength="3" /></label>
-              <div class="row">
-                <label>Part of day
-                  <select id="meal-day-part" required></select>
-                </label>
-                <label>Time (24h)<input type="text" id="meal-time" class="time-input" inputmode="numeric" maxlength="5" placeholder="HH:MM" required /></label>
-              </div>
-              <label class="checkbox-label"><input type="checkbox" id="meal-favorite" /> Favorite</label>
+        <div class="panel settings-panel">
+          <form id="settings-form">
+            <h3>Appearance</h3>
+            <label>Theme
+              <select id="setting-theme">
+                <option value="system">Follow system</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
 
-              <h3>Products in this meal</h3>
-              <div id="meal-items" class="result-list"></div>
+            <h3>Time &amp; date</h3>
+            <label>Time format
+              <select id="setting-time-format">
+                <option value="24h">24-hour (14:30)</option>
+                <option value="12h">12-hour (2:30 PM)</option>
+              </select>
+            </label>
+            <label>First day of week
+              <select id="setting-first-day">
+                <option value="mon">Monday</option>
+                <option value="sun">Sunday</option>
+              </select>
+            </label>
+            <label>Date display format
+              <select id="setting-date-format">
+                <option value="long">Friday, 6 July 2026</option>
+                <option value="dmy">06/07/2026 (DD/MM/YYYY)</option>
+                <option value="mdy">07/06/2026 (MM/DD/YYYY)</option>
+                <option value="ymd">2026-07-06 (YYYY-MM-DD)</option>
+              </select>
+            </label>
 
-              <button type="submit" id="meal-submit" class="btn-primary btn-block" disabled>Save meal</button>
-              <p id="meal-error" class="error hidden"></p>
-              <p id="meal-success" class="success hidden"></p>
-            </form>
-          </div>
-
-          <div class="panel">
-            <h2>Add a product</h2>
-            <input type="search" id="meal-search-input" placeholder="Search products to add..." />
-            <div id="meal-search-results" class="result-list"></div>
-          </div>
+            <p id="settings-saved" class="success hidden">Saved.</p>
+          </form>
         </div>
       </section>
     </main>
+  </div>
+
+  <div id="log-modal" class="modal hidden">
+    <div class="modal-box log-modal-box">
+      <div class="modal-header">
+        <h3 id="log-modal-title">Log food</h3>
+        <button type="button" id="log-modal-close" class="btn-ghost btn-icon" aria-label="Close">✕</button>
+      </div>
+
+      <div id="log-modal-search-step">
+        <div class="quick-lists">
+          <button id="show-recent" class="btn-ghost small">Recent</button>
+          <button id="show-frequent" class="btn-ghost small">Frequent</button>
+          <button id="meal-builder-open" class="btn-ghost small">+ New meal</button>
+        </div>
+        <input type="search" id="search-input" placeholder="Search products, meals, supplements..." />
+        <div id="search-results" class="result-list"></div>
+      </div>
+
+      <div id="log-modal-meal-step" class="hidden">
+        <button type="button" id="meal-builder-cancel" class="btn-ghost small">← Cancel</button>
+
+        <input type="search" id="meal-search-input" placeholder="Search products to add..." />
+        <div id="meal-search-results" class="result-list"></div>
+
+        <h3>Products in this meal</h3>
+        <div id="meal-items" class="result-list"></div>
+
+        <form id="meal-form">
+          <label>Meal name<input type="text" id="meal-name" required minlength="3" placeholder="e.g. My usual breakfast" /></label>
+          <label class="checkbox-label"><input type="checkbox" id="meal-favorite" /> Favorite</label>
+
+          <button type="submit" id="meal-save" class="btn-primary btn-block" disabled>Save &amp; log it</button>
+          <p id="meal-error" class="error hidden"></p>
+        </form>
+      </div>
+
+      <div id="log-modal-form-step" class="hidden">
+        <button type="button" id="log-back-to-search" class="btn-ghost small">← Back to search</button>
+        <form id="log-form">
+          <p id="log-item-name" class="item-name"></p>
+
+          <div class="row">
+            <label>Date<input type="date" id="log-date" lang="en-GB" required /></label>
+            <label>Time<div class="time-input-row">
+              <input type="text" id="log-time" class="time-input" inputmode="numeric" maxlength="5" placeholder="HH:MM" required />
+              <select id="log-time-ampm" class="ampm-select hidden"><option>AM</option><option>PM</option></select>
+            </div></label>
+          </div>
+          <label>Part of day
+            <select id="log-day-part" required></select>
+          </label>
+
+          <div id="log-meal-amount-wrap" class="hidden">
+            <label>Meal portion
+              <select id="log-meal-amount">
+                <option value="1">Whole meal (1×)</option>
+                <option value="0.75">3/4</option>
+                <option value="0.5">1/2</option>
+                <option value="0.25">1/4</option>
+              </select>
+            </label>
+          </div>
+
+          <div id="log-amount-wrap">
+            <div class="row segmented" id="log-method-row">
+              <label><input type="radio" name="specify_method" value="manual" checked /> Manual amount</label>
+              <label><input type="radio" name="specify_method" value="conversion" /> By serving</label>
+            </div>
+
+            <div id="log-manual-wrap">
+              <label id="log-manual-label">Amount<input type="number" step="any" id="log-amount-value" /></label>
+            </div>
+
+            <div id="log-conversion-wrap" class="hidden">
+              <label>Serving
+                <select id="log-conversion-id"></select>
+              </label>
+              <label>Number of servings<input type="number" step="any" id="log-amount-pieces" value="1" /></label>
+            </div>
+          </div>
+
+          <button type="submit" id="log-submit" class="btn-primary btn-block">Log it</button>
+          <p id="log-error" class="error hidden"></p>
+          <p id="log-success" class="success hidden"></p>
+        </form>
+      </div>
+    </div>
   </div>
 
   <div id="qty-modal" class="modal hidden">
@@ -213,5 +275,7 @@
   <script src="/shared.js"></script>
   <script src="/app.js"></script>
   <script src="/calendar.js"></script>
+  <script src="/settings.js"></script>
+  <script src="/profile.js"></script>
 </body>
 </html>
