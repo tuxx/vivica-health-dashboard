@@ -9,10 +9,7 @@
   <a href="screenshots/mobile.png"><img src="screenshots/thumbs/mobile-thumb.png" width="120" alt="Mobile layout" /></a>
 </p>
 
-<sub>Click any thumbnail for the full-size screenshot. (GitHub's Markdown renderer strips
-`<script>` tags, so a real click-through carousel isn't possible here — this is a
-static, clickable gallery instead. All data in these screenshots is fake demo data,
-not a real account.)</sub>
+<sub>Click any thumbnail for the full-size screenshot.</sub>
 
 A self-hosted web dashboard for logging food with [Vivica Health](https://vivica.health), so you don't have to use the Android app.
 
