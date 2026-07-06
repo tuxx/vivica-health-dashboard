@@ -407,6 +407,37 @@ button { cursor: pointer; }
 }
 #log-back-to-search { margin-bottom: 0.9rem; }
 
+.search-with-scan { align-items: center; margin-bottom: 0.8rem; }
+.search-with-scan #search-input { flex: 1; margin-bottom: 0; }
+#scan-barcode-btn svg { width: 20px; height: 20px; display: block; }
+
+.scan-modal-box {
+  width: min(420px, 94vw);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+#scan-camera-select { margin-bottom: 0; }
+
+#scan-viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 60vh;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+#scan-reader, #scan-reader video, #scan-reader canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+}
+/* html5-qrcode injects its own scan-region/border overlay elements into #scan-reader;
+   force them to size against the wrapper rather than their default fixed px values. */
+#scan-reader > div { width: 100% !important; }
+
 #palette-modal.modal { align-items: flex-start; padding-top: 12vh; }
 .palette-box { width: min(560px, 94vw); max-height: 70vh; display: flex; flex-direction: column; }
 #palette-input { margin-bottom: 0.8rem; }
@@ -580,6 +611,8 @@ button { cursor: pointer; }
   }
 
   main { padding: 1rem; }
+
+  #scan-viewport { max-height: 45vh; }
 }
 
 @media (max-width: 480px) {
@@ -595,4 +628,6 @@ button { cursor: pointer; }
   #search-results, #meal-search-results, #palette-results { min-height: 50vh; }
 
   .login-card { padding: 1.5rem 1.25rem; }
+
+  #scan-viewport { aspect-ratio: 3 / 4; }
 }

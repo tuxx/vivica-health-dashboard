@@ -179,6 +179,9 @@ document.addEventListener('keydown', (e) => {
     } else if (!$('#shortcuts-modal').classList.contains('hidden')) {
       closeShortcutsModal();
       e.preventDefault();
+    } else if (!$('#scan-modal').classList.contains('hidden')) {
+      closeScanModal();
+      e.preventDefault();
     } else if (!$('#log-modal').classList.contains('hidden')) {
       closeLogModal();
       e.preventDefault();
@@ -460,6 +463,11 @@ async function runNutritionSearch(val) {
     });
     const items = Array.isArray(res.data) ? res.data : Object.values(res.data || {});
     renderResultList(container, items, { onClick: selectLogItem });
+    // A barcode (all-digit input, 6+ chars — whether typed or scanned) with exactly one
+    // match auto-advances straight to the log form, mirroring the real app's isBarcode() UX.
+    if (/^\d+$/.test(val) && val.length >= 6 && items.length === 1) {
+      selectLogItem(items[0]);
+    }
   } catch (err) {
     container.innerHTML = `<p class="error"></p>`;
     container.querySelector('.error').textContent = err.message;

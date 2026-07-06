@@ -213,7 +213,14 @@
           <button id="meal-builder-open" class="btn-ghost small">+ New meal <kbd class="shortcut-hint">B</kbd></button>
           <button id="copy-day-open" class="btn-ghost small">+ Copy from day</button>
         </div>
-        <input type="search" id="search-input" placeholder="Search products, meals, supplements..." />
+        <div class="row search-with-scan">
+          <input type="search" id="search-input" placeholder="Search products, meals, supplements..." />
+          <button type="button" id="scan-barcode-btn" class="btn-ghost btn-icon" aria-label="Scan barcode" title="Scan barcode">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 7V5a1 1 0 011-1h2M4 17v2a1 1 0 001 1h2M20 7V5a1 1 0 00-1-1h-2M20 17v2a1 1 0 01-1 1h-2M7 8v8M10 8v8M13 8v8M16 8v8" />
+            </svg>
+          </button>
+        </div>
         <div id="search-results" class="result-list"></div>
       </div>
 
@@ -311,6 +318,24 @@
     </div>
   </div>
 
+  <div id="scan-modal" class="modal hidden">
+    <div class="modal-box scan-modal-box">
+      <div class="modal-header">
+        <h3>Scan barcode</h3>
+        <button type="button" id="scan-modal-close" class="btn-ghost btn-icon" aria-label="Close">✕</button>
+      </div>
+
+      <select id="scan-camera-select" class="hidden"></select>
+
+      <div id="scan-viewport"><div id="scan-reader"></div></div>
+
+      <p id="scan-status" class="muted"></p>
+      <p id="scan-error" class="error hidden"></p>
+
+      <button type="button" id="scan-use-manual" class="btn-ghost btn-block">Type it instead</button>
+    </div>
+  </div>
+
   <div id="shortcuts-modal" class="modal hidden">
     <div class="modal-box">
       <div class="modal-header">
@@ -337,8 +362,10 @@
     </div>
   </div>
 
+  <script src="/vendor/html5-qrcode.min.js"></script>
   <script src="/shared.js"></script>
   <script src="/app.js"></script>
+  <script src="/scan.js"></script>
   <script src="/calendar.js"></script>
   <script src="/settings.js"></script>
   <script src="/profile.js"></script>
