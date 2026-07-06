@@ -246,6 +246,20 @@ function applyHighlight(items, idx) {
   items[idx].scrollIntoView({ block: 'nearest' });
 }
 
+// Every modal/popover open should push whatever had focus, and its close should pop
+// and restore it — otherwise focus is left on a now-hidden element (or drops to <body>),
+// which silently breaks any keyboard navigation scoped to "focus is inside container X".
+// A stack (not a single slot) handles nested overlays correctly, e.g. the barcode scanner
+// opening on top of the still-open log-food modal.
+const modalFocusStack = [];
+function trackFocusBeforeModal() {
+  modalFocusStack.push(document.activeElement);
+}
+function restoreFocusAfterModal() {
+  const el = modalFocusStack.pop();
+  if (el && typeof el.focus === 'function' && document.body.contains(el)) el.focus();
+}
+
 // Lets ArrowUp/ArrowDown move focus between fields inside a modal, so a form is fully
 // operable without Tab. Excluded: <select>/<textarea> and input types where the arrow
 // keys already have native meaning the user expects to keep (number/range spinners, date

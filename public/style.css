@@ -566,6 +566,7 @@ button { cursor: pointer; }
   background: var(--surface);
 }
 .cal-day:hover { border-color: var(--accent); }
+.cal-day:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .cal-day.empty { visibility: hidden; cursor: default; }
 .cal-day .day-num { font-size: 0.72rem; color: var(--muted); }
 .cal-day.is-today .day-num { color: var(--accent-dark); font-weight: 700; }

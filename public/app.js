@@ -242,11 +242,13 @@ document.addEventListener('keydown', (e) => {
 });
 
 function openShortcutsModal() {
+  trackFocusBeforeModal();
   renderShortcutsHelpList($('#shortcuts-help-list'));
   $('#shortcuts-modal').classList.remove('hidden');
 }
 function closeShortcutsModal() {
   $('#shortcuts-modal').classList.add('hidden');
+  restoreFocusAfterModal();
 }
 $('#shortcuts-close').addEventListener('click', closeShortcutsModal);
 $('#shortcuts-modal').addEventListener('click', (e) => {
@@ -282,6 +284,9 @@ $('.sidebar').addEventListener('keydown', (e) => {
     if (item.dataset.tab === 'calendar' && window.focusFirstDayPart) {
       e.preventDefault();
       window.focusFirstDayPart();
+    } else if (item.dataset.tab === 'settings' && window.focusFirstSettingsControl) {
+      e.preventDefault();
+      window.focusFirstSettingsControl();
     }
   }
 });
@@ -313,6 +318,7 @@ window.startLogForDayPart = function startLogForDayPart(date, dayPart) {
 };
 
 function openLogModal(date, dayPart) {
+  trackFocusBeforeModal();
   logContext = { date, day_part: dayPart || guessDayPartForTime(dayParts), dayPartExplicit: !!dayPart };
   editingItem = null;
   selectedLogItem = null;
@@ -328,6 +334,7 @@ function closeLogModal() {
   editingItem = null;
   selectedLogItem = null;
   mealItems = [];
+  restoreFocusAfterModal();
 }
 
 function backToSearchStep() {
@@ -350,6 +357,7 @@ function backToSearchStep() {
 // logs a new entry then deletes the old one — there's no documented in-place "update
 // logged item" endpoint, so this is create-then-delete under the hood.
 window.startEditLogItem = async function startEditLogItem(item, ds) {
+  trackFocusBeforeModal();
   const isMeal = item.type_record === 'meal';
   const pivotId = isMeal ? item.meal_pivot_id : item.product_pivot_id;
   const upstreamType = typeForRecord(item.type_record);
@@ -655,6 +663,7 @@ async function runMealProductSearch(val) {
 }
 
 function openQtyModal(product) {
+  trackFocusBeforeModal();
   pendingMealProduct = product;
   $('#qty-modal-title').textContent = product.description;
   $('#qty-modal-unit').textContent = product.measuring_unit || '';
@@ -665,6 +674,7 @@ function openQtyModal(product) {
 $('#qty-modal-cancel').addEventListener('click', () => {
   $('#qty-modal').classList.add('hidden');
   pendingMealProduct = null;
+  restoreFocusAfterModal();
 });
 $('#qty-modal-confirm').addEventListener('click', () => {
   const amount = Number($('#qty-modal-amount').value);
@@ -685,6 +695,7 @@ $('#qty-modal-confirm').addEventListener('click', () => {
   $('#qty-modal').classList.add('hidden');
   pendingMealProduct = null;
   renderMealItems();
+  restoreFocusAfterModal();
 });
 
 function renderMealItems() {

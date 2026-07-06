@@ -38,6 +38,7 @@ function setScanError(text) {
 }
 
 async function openScanModal() {
+  trackFocusBeforeModal();
   // Defensive: if a previous attempt left a camera stream open (e.g. it errored out
   // before reaching stopScan()), release it first — a still-held track can make the
   // getUserMedia() call inside getCameras() below fail outright with no usable camera
@@ -240,6 +241,7 @@ async function stopScan() {
 function closeScanModal() {
   $('#scan-modal').classList.add('hidden');
   runExclusive(stopScan);
+  restoreFocusAfterModal();
 }
 
 $('#scan-barcode-btn').addEventListener('click', () => runExclusive(openScanModal));

@@ -79,9 +79,38 @@ window.initCalendar = function initCalendar() {
     if (calendarSelectedDate && window.startLogForDayPart) window.startLogForDayPart(calendarSelectedDate);
   });
 
-  // Day-part keyboard navigation: Up/Down move between the day's parts (breakfast/lunch/...),
-  // Left hands off to the sidebar, Enter opens the log-food modal for the focused part.
-  $('#day-panel-items').addEventListener('keydown', (e) => {
+  // Day-panel-header keyboard navigation: a roving toolbar — Left/Right move between its
+  // own buttons (prev/date/next/today/+Log food/refresh), Left from the first one hands
+  // off to the sidebar, Down drops into the totals toggle below.
+  $('.day-panel-header').addEventListener('keydown', (e) => {
+    const btns = $$('.day-panel-header button');
+    const idx = btns.indexOf(e.target);
+    if (idx === -1) return;
+
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      btns[Math.min(idx + 1, btns.length - 1)]?.focus();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      if (idx === 0) { if (window.focusSidebar) window.focusSidebar(); }
+      else btns[idx - 1]?.focus();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      $('#day-totals-toggle')?.focus();
+    }
+  });
+
+  // Day-panel keyboard navigation: Up/Down move vertically through the totals toggle
+  // ("kcal" summary pill) and the day's parts (breakfast/lunch/...), Left hands off to
+  // the sidebar, Enter opens the log-food modal for the focused part.
+  $('#day-panel').addEventListener('keydown', (e) => {
+    if (e.target.id === 'day-totals-toggle') {
+      if (e.key === 'ArrowDown') { e.preventDefault(); focusDayPartGroup(0); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); $('#day-panel-date')?.focus(); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); if (window.focusSidebar) window.focusSidebar(); }
+      return;
+    }
+
     const group = e.target.closest('.day-part-group');
     if (!group) return;
     const groups = dayPartGroups();
@@ -89,10 +118,11 @@ window.initCalendar = function initCalendar() {
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      focusDayPartGroup(idx + 1);
+      if (idx + 1 < groups.length) focusDayPartGroup(idx + 1);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      focusDayPartGroup(idx - 1);
+      if (idx > 0) focusDayPartGroup(idx - 1);
+      else $('#day-totals-toggle')?.focus();
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault();
       if (window.focusSidebar) window.focusSidebar();
@@ -124,6 +154,7 @@ window.focusFirstDayPart = function focusFirstDayPart() {
 // Popover calendar: only fetched/rendered on demand (opening it), not on page load —
 // the day view is the main focus now, a whole month's stats shouldn't be a startup cost.
 function openCalendarPopover() {
+  trackFocusBeforeModal();
   const popover = $('#calendar-popover');
   calendarRefDate = new Date(calendarSelectedDate + 'T00:00:00');
   calendarRefDate.setDate(1);
@@ -134,14 +165,43 @@ function openCalendarPopover() {
   const maxLeft = window.innerWidth - popover.offsetWidth - 12;
   popover.style.top = `${anchor.bottom + 8}px`;
   popover.style.left = `${Math.max(12, Math.min(anchor.left, maxLeft))}px`;
+
+  // Land keyboard focus on the grid straight away so arrow keys work without an extra Tab.
+  (calDayCells().find((c) => c.classList.contains('selected'))
+    || calDayCells().find((c) => c.classList.contains('is-today'))
+    || calDayCells()[0])?.focus();
 }
 window.closeCalendarPopover = function closeCalendarPopover() {
   $('#calendar-popover').classList.add('hidden');
+  restoreFocusAfterModal();
 };
 function toggleCalendarPopover() {
   if ($('#calendar-popover').classList.contains('hidden')) openCalendarPopover();
   else closeCalendarPopover();
 }
+
+// Calendar-grid keyboard navigation: arrows move between day cells (Left/Right by one day,
+// Up/Down by a week), Enter/Space selects the focused day.
+function calDayCells() {
+  return $$('#calendar-grid .cal-day:not(.empty)');
+}
+function focusCalDay(idx) {
+  const cells = calDayCells();
+  if (idx < 0 || idx >= cells.length) return; // stays within the currently rendered month
+  cells[idx].focus();
+}
+$('#calendar-grid').addEventListener('keydown', (e) => {
+  const cell = e.target.closest('.cal-day');
+  if (!cell || cell.classList.contains('empty')) return;
+  const cells = calDayCells();
+  const idx = cells.indexOf(cell);
+
+  if (e.key === 'ArrowRight') { e.preventDefault(); focusCalDay(idx + 1); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); focusCalDay(idx - 1); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); focusCalDay(idx + 7); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); focusCalDay(idx - 7); }
+  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cell.click(); }
+});
 
 window.invalidateCalendarDay = function invalidateCalendarDay(ds) {
   delete calendarCache[ds];
@@ -177,6 +237,7 @@ function renderCalendarMonth() {
 
     const cell = document.createElement('div');
     cell.className = 'cal-day';
+    cell.tabIndex = 0;
     cell.dataset.date = ds;
     if (ds === today) cell.classList.add('is-today');
     if (ds === calendarSelectedDate) cell.classList.add('selected');

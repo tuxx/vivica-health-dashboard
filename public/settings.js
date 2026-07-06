@@ -91,5 +91,35 @@ $('#shortcuts-reset').addEventListener('click', () => {
   renderShortcutsSettingsList();
 });
 
+// ---------- Keyboard shortcuts panel: roving nav ----------
+// Up/Down move between this panel's controls (the hints checkbox, each rebind button,
+// and Reset) and Left hands off to the sidebar — the same pattern used in the day panel.
+// Scoped to just these controls (via indexOf) so it never touches the Appearance form's
+// <select> elements, which already use Up/Down natively to change their own value.
+
+function keyboardPanelFocusables() {
+  return [$('#setting-show-shortcut-hints'), ...$$('.shortcut-rebind-btn'), $('#shortcuts-reset')];
+}
+window.focusFirstSettingsControl = function focusFirstSettingsControl() {
+  keyboardPanelFocusables()[0]?.focus();
+};
+
+$('#settings-view').addEventListener('keydown', (e) => {
+  const focusables = keyboardPanelFocusables();
+  const idx = focusables.indexOf(e.target);
+  if (idx === -1) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    focusables[Math.min(idx + 1, focusables.length - 1)]?.focus();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    focusables[Math.max(idx - 1, 0)]?.focus();
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    if (window.focusSidebar) window.focusSidebar();
+  }
+});
+
 populateSettingsForm();
 renderShortcutsSettingsList();
