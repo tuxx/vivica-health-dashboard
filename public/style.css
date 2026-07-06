@@ -578,7 +578,16 @@ button { cursor: pointer; }
 .day-totals-section:not(.collapsed) .day-totals-toggle-btn { margin-bottom: 0.6rem; }
 .day-totals-section.collapsed .day-totals { display: none; }
 
-.day-part-group { margin-bottom: 1rem; }
+/* Each day-part group (header + its rows) is one colored block, alternating between
+   two shades — makes it obvious at a glance which "+" belongs to which part of the day. */
+.day-part-group {
+  margin-bottom: 0.6rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+}
+.day-part-group:nth-child(odd) { background: var(--surface); }
+.day-part-group:nth-child(even) { background: var(--bg); }
+.day-part-group:hover { background: var(--accent-faded); }
 .day-part-group h3 { margin: 0; }
 .day-part-header { display: flex; align-items: center; gap: 0.5rem; }
 .day-part-header h3 { flex: 1; }
@@ -586,12 +595,10 @@ button { cursor: pointer; }
 
 .day-item {
   display: flex; align-items: center; gap: 0.65rem;
-  padding: 0.45rem 0.6rem;
+  padding: 0.45rem 0;
   border-bottom: 1px solid var(--border);
 }
 .day-item:last-child { border-bottom: none; }
-.day-item:nth-child(even) { background: var(--bg); }
-.day-part-group:hover .day-item { background: var(--accent-faded); }
 .day-item .name { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .day-item .meta { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
 .day-item .edit-item {
