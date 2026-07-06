@@ -133,7 +133,11 @@ window.initCalendar = function initCalendar() {
   });
 
   renderWeekdayHeader();
-  selectDay(todayStr());
+  // Land keyboard focus on the first day part as soon as the initial day loads, so arrow
+  // keys work right away instead of requiring an initial click/Tab to "enter" the panel.
+  // Scoped to just this first call — initCalendar's own guard above ensures it never
+  // re-fires and steals focus on later day switches, refreshes, etc.
+  selectDay(todayStr()).then(() => focusDayPartGroup(0));
 };
 
 function dayPartGroups() {

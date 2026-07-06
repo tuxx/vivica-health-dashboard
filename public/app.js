@@ -264,29 +264,41 @@ $('#sidebar-collapse-toggle').addEventListener('click', () => {
 });
 
 // ---------- Sidebar keyboard navigation ----------
-// Up/Down move between the 3 nav items (Food Log/Profile/Settings), Right hands off to
-// the day panel's parts (only meaningful from the Food Log tab, since that's the only
-// one with a day panel). Entry point is native Tab, same as any other button group.
+// Matches the actual visual layout: Food Log is a standalone row, Profile and Settings
+// sit side by side below it — so Up/Down move between the two rows, Left/Right move
+// between Profile and Settings within their row. Right also hands off into the active
+// tab's content (day parts / settings controls) when that tab is the one showing.
 
 $('.sidebar').addEventListener('keydown', (e) => {
   const item = e.target.closest('[data-tab]');
   if (!item) return;
-  const items = $$('[data-tab]');
-  const idx = items.indexOf(item);
+  const tab = item.dataset.tab;
 
   if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    items[Math.min(idx + 1, items.length - 1)]?.focus();
+    if (tab === 'calendar') {
+      e.preventDefault();
+      $('[data-tab="profile"]')?.focus();
+    }
   } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    items[Math.max(idx - 1, 0)]?.focus();
+    if (tab === 'profile' || tab === 'settings') {
+      e.preventDefault();
+      $('[data-tab="calendar"]')?.focus();
+    }
   } else if (e.key === 'ArrowRight') {
-    if (item.dataset.tab === 'calendar' && window.focusFirstDayPart) {
+    if (tab === 'profile') {
+      e.preventDefault();
+      $('[data-tab="settings"]')?.focus();
+    } else if (tab === 'calendar' && item.classList.contains('active') && window.focusFirstDayPart) {
       e.preventDefault();
       window.focusFirstDayPart();
-    } else if (item.dataset.tab === 'settings' && window.focusFirstSettingsControl) {
+    } else if (tab === 'settings' && item.classList.contains('active') && window.focusFirstSettingsControl) {
       e.preventDefault();
       window.focusFirstSettingsControl();
+    }
+  } else if (e.key === 'ArrowLeft') {
+    if (tab === 'settings') {
+      e.preventDefault();
+      $('[data-tab="profile"]')?.focus();
     }
   }
 });
