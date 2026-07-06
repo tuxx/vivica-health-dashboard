@@ -91,7 +91,6 @@ async function enterApp() {
 
   window.currentUser = me.user || null;
 
-  $('#user-email').textContent = me.user?.email || '';
   $('#shell').classList.remove('hidden');
   $('#login-view').classList.add('hidden');
   showTab('calendar');
@@ -146,12 +145,12 @@ $('#logout-btn').addEventListener('click', async () => {
 
 // ---------- tabs ----------
 
-$$('#tabs button[data-tab]').forEach((btn) => {
+$$('[data-tab]').forEach((btn) => {
   btn.addEventListener('click', () => showTab(btn.dataset.tab));
 });
 
 function showTab(name) {
-  $$('#tabs button[data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+  $$('[data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   $('#calendar-view').classList.toggle('hidden', name !== 'calendar');
   $('#settings-view').classList.toggle('hidden', name !== 'settings');
   $('#profile-view').classList.toggle('hidden', name !== 'profile');
@@ -162,10 +161,19 @@ function showTab(name) {
 // they never fight with typing. "N" is the fast path for the everyday action:
 // opens the quick-log modal for the selected calendar day (or today).
 document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    if ($('#palette-modal').classList.contains('hidden')) openCommandPalette();
+    else closeCommandPalette();
+    return;
+  }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
 
   if (e.key === 'Escape') {
-    if (!$('#shortcuts-modal').classList.contains('hidden')) {
+    if (!$('#palette-modal').classList.contains('hidden')) {
+      closeCommandPalette();
+      e.preventDefault();
+    } else if (!$('#shortcuts-modal').classList.contains('hidden')) {
       closeShortcutsModal();
       e.preventDefault();
     } else if (!$('#log-modal').classList.contains('hidden')) {
@@ -230,11 +238,98 @@ function openShortcutsModal() {
 function closeShortcutsModal() {
   $('#shortcuts-modal').classList.add('hidden');
 }
-$('#shortcuts-open').addEventListener('click', openShortcutsModal);
 $('#shortcuts-close').addEventListener('click', closeShortcutsModal);
 $('#shortcuts-modal').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) closeShortcutsModal();
 });
+
+// ---------- Command palette ----------
+// Ctrl/Cmd+K from anywhere. Static navigation commands filtered by substring match,
+// plus a live product/meal search once the query is long enough — picking a product
+// result opens the log modal straight to that item's log-it form.
+
+function paletteTargetDate() {
+  return typeof calendarSelectedDate !== 'undefined' && calendarSelectedDate ? calendarSelectedDate : todayStr();
+}
+const PALETTE_COMMANDS = [
+  { label: 'Calendar', hint: 'C', action: () => showTab('calendar') },
+  { label: 'Profile', hint: 'P', action: () => showTab('profile') },
+  { label: 'Settings', hint: 'S', action: () => showTab('settings') },
+  { label: 'Log food for today', hint: 'N', action: () => openLogModal(paletteTargetDate()) },
+  { label: 'Build a meal', hint: 'B', action: () => { openLogModal(paletteTargetDate()); openMealBuilder(); } },
+  { label: 'Copy from another day', action: () => { openLogModal(paletteTargetDate()); if (window.openCopyStep) window.openCopyStep(); } },
+  { label: 'Keyboard shortcuts', hint: '?', action: () => openShortcutsModal() }
+];
+
+function openCommandPalette() {
+  $('#palette-modal').classList.remove('hidden');
+  $('#palette-input').value = '';
+  renderPaletteResults('');
+  $('#palette-input').focus();
+}
+function closeCommandPalette() {
+  $('#palette-modal').classList.add('hidden');
+}
+$('#palette-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeCommandPalette();
+});
+$('#palette-input').addEventListener('input', (e) => renderPaletteResults(e.target.value));
+setupListKeyboardNav($('#palette-input'), () => $('#palette-results'));
+
+function renderPaletteResults(query) {
+  const q = query.trim().toLowerCase();
+  const container = $('#palette-results');
+  container.innerHTML = '';
+
+  const matchingCommands = PALETTE_COMMANDS.filter((c) => !q || c.label.toLowerCase().includes(q));
+  for (const cmd of matchingCommands) {
+    const row = document.createElement('div');
+    row.className = 'result-item command-item';
+    row.innerHTML = `<div class="product-card">
+      <div class="product-card-body"><span class="name">${escapeHtml(cmd.label)}</span></div>
+      ${cmd.hint ? `<kbd>${escapeHtml(cmd.hint)}</kbd>` : ''}
+    </div>`;
+    row.addEventListener('click', () => { closeCommandPalette(); cmd.action(); });
+    container.appendChild(row);
+  }
+
+  if (q.length >= 2) {
+    runPaletteProductSearch(q);
+  } else if (!matchingCommands.length) {
+    container.innerHTML = '<p class="muted">No matches.</p>';
+  }
+}
+
+const runPaletteProductSearch = debounce(async (q) => {
+  try {
+    const res = await api('/nutrition/search', {
+      method: 'POST',
+      body: { search: q, brand: '', supermarket: null, page: 1, type: '', meal_tab: 'all' }
+    });
+    if ($('#palette-input').value.trim().toLowerCase() !== q) return; // query changed while this was in flight
+    const items = Array.isArray(res.data) ? res.data : Object.values(res.data || {});
+    if (!items.length) return;
+
+    const container = $('#palette-results');
+    const heading = document.createElement('p');
+    heading.className = 'muted palette-section-label';
+    heading.textContent = 'Products & meals';
+    container.appendChild(heading);
+    for (const item of items) {
+      const wrap = document.createElement('div');
+      wrap.className = 'result-item';
+      wrap.innerHTML = renderProductCard(item);
+      wrap.addEventListener('click', () => {
+        closeCommandPalette();
+        openLogModal(paletteTargetDate());
+        selectLogItem(item);
+      });
+      container.appendChild(wrap);
+    }
+  } catch {
+    // silent — a failed live search shouldn't block the static commands above it
+  }
+}, 300);
 
 // Enter-to-confirm in the quantity modal (it's not a <form>, so Enter does nothing by default).
 $('#qty-modal-amount').addEventListener('keydown', (e) => {
@@ -277,6 +372,7 @@ function backToSearchStep() {
   $('#log-back-to-search').classList.remove('hidden');
   $('#log-modal-form-step').classList.add('hidden');
   $('#log-modal-meal-step').classList.add('hidden');
+  $('#log-modal-copy-step').classList.add('hidden');
   $('#log-modal-search-step').classList.remove('hidden');
   $('#log-error').classList.add('hidden');
   $('#log-success').classList.add('hidden');
@@ -341,6 +437,7 @@ $('#search-input').addEventListener('input', debounce((e) => {
   if (val.length < 2) { $('#search-results').innerHTML = ''; return; }
   runNutritionSearch(val);
 }, 350));
+setupListKeyboardNav($('#search-input'), () => $('#search-results'));
 
 async function runNutritionSearch(val) {
   const container = $('#search-results');
@@ -425,6 +522,7 @@ async function selectLogItem(item) {
 function renderLogForm() {
   $('#log-modal-search-step').classList.add('hidden');
   $('#log-modal-meal-step').classList.add('hidden');
+  $('#log-modal-copy-step').classList.add('hidden');
   $('#log-modal-form-step').classList.remove('hidden');
   $('#log-back-to-search').classList.toggle('hidden', !!editingItem);
   $('#log-error').classList.add('hidden');
@@ -564,6 +662,7 @@ $('#meal-search-input').addEventListener('input', debounce((e) => {
   if (val.length < 2) { $('#meal-search-results').innerHTML = ''; return; }
   runMealProductSearch(val);
 }, 350));
+setupListKeyboardNav($('#meal-search-input'), () => $('#meal-search-results'));
 
 async function runMealProductSearch(val) {
   const container = $('#meal-search-results');
@@ -693,6 +792,145 @@ async function findAndSelectCreatedMeal(name) {
     errorEl.textContent = `Meal "${name}" was saved, but logging it now failed: ${err.message}`;
     errorEl.classList.remove('hidden');
   }
+}
+
+// ---------- Copy entries from another day (inside the log-food modal) ----------
+// "+ Copy from day" opens a picker: choose a source date, check which of that day's
+// items to bring over, copy them into the modal's target day. Each copy re-fetches
+// item_data (same as a normal log) and submits with the source item's own day-part/time
+// and amount/serving carried over — only the date changes.
+
+let copySourceItems = []; // flat list of the currently-loaded source day's items
+
+window.openCopyStep = function openCopyStep() {
+  $('#log-modal-search-step').classList.add('hidden');
+  $('#log-modal-copy-step').classList.remove('hidden');
+  $('#copy-error').classList.add('hidden');
+  $('#copy-success').classList.add('hidden');
+  $('#copy-select-all').checked = false;
+
+  const targetDate = logContext?.date || todayStr();
+  const sourceDate = new Date(targetDate + 'T00:00:00');
+  sourceDate.setDate(sourceDate.getDate() - 1);
+  $('#copy-source-date').value = dateToStr(sourceDate);
+  loadCopySourceDay($('#copy-source-date').value);
+};
+$('#copy-day-open').addEventListener('click', window.openCopyStep);
+$('#copy-day-cancel').addEventListener('click', backToSearchStep);
+$('#copy-source-date').addEventListener('change', (e) => loadCopySourceDay(e.target.value));
+
+async function loadCopySourceDay(dateStr) {
+  const container = $('#copy-source-items');
+  container.innerHTML = '<p class="muted">Loading…</p>';
+  copySourceItems = [];
+  updateCopySubmitState();
+  try {
+    const data = await api('/nutrition/stats?date=' + dateStr);
+    const items = data.items || {};
+    for (const [dp, arr] of Object.entries(items)) {
+      for (const item of (arr || [])) {
+        copySourceItems.push(Object.assign({}, item, { day_part: item.day_part || dp }));
+      }
+    }
+    renderCopySourceItems();
+  } catch (err) {
+    container.innerHTML = `<p class="error"></p>`;
+    container.querySelector('.error').textContent = err.message;
+  }
+}
+
+function renderCopySourceItems() {
+  const container = $('#copy-source-items');
+  container.innerHTML = '';
+  if (!copySourceItems.length) {
+    container.innerHTML = '<p class="muted">Nothing logged that day.</p>';
+    updateCopySubmitState();
+    return;
+  }
+  copySourceItems.forEach((item, idx) => {
+    const isMeal = item.type_record === 'meal';
+    const kcal = item.values?.enercc_kcal ? `${round(item.values.enercc_kcal, 0)} kcal` : '';
+    const dayPartLabel = ucFirst((item.day_part || '').replace(/_/g, ' '));
+    const meta = [item.intended_time, dayPartLabel, kcal].filter(Boolean).join(' • ');
+
+    const wrap = document.createElement('label');
+    wrap.className = 'result-item copy-item-row';
+    wrap.innerHTML = `<input type="checkbox" class="copy-item-checkbox" data-idx="${idx}" />` +
+      renderProductCard({ ...item, description: isMeal ? (item.meal_name || item.description) : item.description }, { meta });
+    container.appendChild(wrap);
+  });
+  container.querySelectorAll('.copy-item-checkbox').forEach((cb) => cb.addEventListener('change', updateCopySubmitState));
+  updateCopySubmitState();
+}
+
+$('#copy-select-all').addEventListener('change', (e) => {
+  $$('.copy-item-checkbox').forEach((cb) => { cb.checked = e.target.checked; });
+  updateCopySubmitState();
+});
+
+function updateCopySubmitState() {
+  const checked = $$('.copy-item-checkbox').filter((cb) => cb.checked);
+  $('#copy-submit').disabled = checked.length === 0;
+  $('#copy-submit').textContent = checked.length
+    ? `Copy ${checked.length} selected item${checked.length === 1 ? '' : 's'}`
+    : 'Copy selected items';
+}
+
+$('#copy-submit').addEventListener('click', async () => {
+  const errorEl = $('#copy-error');
+  const successEl = $('#copy-success');
+  errorEl.classList.add('hidden');
+  successEl.classList.add('hidden');
+
+  const checkedIdxs = $$('.copy-item-checkbox').filter((cb) => cb.checked).map((cb) => Number(cb.dataset.idx));
+  const targetDate = logContext?.date || todayStr();
+  let copied = 0;
+  let failed = 0;
+
+  $('#copy-submit').disabled = true;
+  for (const idx of checkedIdxs) {
+    try {
+      await copyLoggedItemToDate(copySourceItems[idx], targetDate);
+      copied++;
+    } catch {
+      failed++;
+    }
+  }
+  $('#copy-submit').disabled = false;
+
+  if (copied && window.invalidateCalendarDay) window.invalidateCalendarDay(targetDate);
+
+  if (failed) {
+    errorEl.textContent = `Copied ${copied}, ${failed} failed — search for those manually if needed.`;
+    errorEl.classList.remove('hidden');
+  } else {
+    successEl.textContent = `Copied ${copied} item${copied === 1 ? '' : 's'}.`;
+    successEl.classList.remove('hidden');
+    setTimeout(() => {
+      if (!$('#log-modal').classList.contains('hidden')) closeLogModal();
+    }, 900);
+  }
+});
+
+async function copyLoggedItemToDate(item, targetDate) {
+  const isMeal = item.type_record === 'meal';
+  const id = isMeal ? item.meal_id : item.id;
+  const upstreamType = typeForRecord(item.type_record);
+  const itemData = await api('/nutrition/item_data', { method: 'POST', body: { type: upstreamType, id } });
+  const payload = {
+    ...itemData,
+    id,
+    type_record: item.type_record,
+    date: targetDate,
+    time: item.intended_time || nowTimeStr(),
+    day_part: item.day_part,
+    specify_method: item.nutrient_conversion_id ? 'conversion' : 'manual',
+    amount_value: item.nutrient_conversion_id ? '' : (item.used_product_amount ?? ''),
+    selected_conversion_id: item.nutrient_conversion_id || '',
+    amount_pieces: item.amount_pieces ?? item.used_amount ?? '',
+    meal_amount: item.meal_amount || 1
+  };
+  await api('/nutrition/submit_item', { method: 'POST', body: payload });
 }
 
 renderMealItems();

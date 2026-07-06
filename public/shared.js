@@ -206,3 +206,33 @@ function debounce(fn, ms) {
     t = setTimeout(() => fn(...args), ms);
   };
 }
+
+// Arrow-key/Enter navigation over a list of result rows, driven from a text input.
+// `getItems()` is called fresh on every keypress so it always sees the current DOM
+// (result lists get rebuilt on every search). `itemSelector` matches the row elements.
+function setupListKeyboardNav(input, getContainer, itemSelector = '.result-item') {
+  let highlighted = -1;
+  input.addEventListener('input', () => { highlighted = -1; });
+  input.addEventListener('keydown', (e) => {
+    const container = getContainer();
+    const items = container ? Array.from(container.querySelectorAll(itemSelector)) : [];
+    if (!items.length) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      highlighted = Math.min(highlighted + 1, items.length - 1);
+      applyHighlight(items, highlighted);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      highlighted = Math.max(highlighted - 1, 0);
+      applyHighlight(items, highlighted);
+    } else if (e.key === 'Enter' && highlighted >= 0 && items[highlighted]) {
+      e.preventDefault();
+      items[highlighted].click();
+    }
+  });
+}
+function applyHighlight(items, idx) {
+  items.forEach((el, i) => el.classList.toggle('highlighted', i === idx));
+  items[idx].scrollIntoView({ block: 'nearest' });
+}

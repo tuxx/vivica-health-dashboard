@@ -80,6 +80,9 @@ h3 { font-size: 0.85rem; margin: 1.1rem 0 0.5rem; color: var(--muted); text-tran
 
 .sidebar {
   width: var(--sidebar-width);
+  height: 100vh;
+  position: sticky;
+  top: 0;
   flex-shrink: 0;
   background: var(--surface);
   border-right: 1px solid var(--border);
@@ -87,6 +90,7 @@ h3 { font-size: 0.85rem; margin: 1.1rem 0 0.5rem; color: var(--muted); text-tran
   flex-direction: column;
   padding: 1.25rem 1rem;
   gap: 1.5rem;
+  overflow-y: auto;
 }
 
 .brand { display: flex; align-items: center; gap: 0.6rem; padding: 0 0.25rem; }
@@ -136,8 +140,23 @@ kbd {
 @media (prefers-color-scheme: dark) { .nav-item.active { color: #7fd8c2; } }
 :root[data-theme="dark"] .nav-item.active { color: #7fd8c2; }
 
-.sidebar-footer { border-top: 1px solid var(--border); padding-top: 0.9rem; display: flex; flex-direction: column; gap: 0.5rem; }
-#user-email { font-size: 0.82rem; word-break: break-all; padding: 0 0.25rem; }
+.sidebar-footer { border-top: 1px solid var(--border); padding-top: 0.9rem; display: flex; flex-direction: column; gap: 0.6rem; }
+
+.icon-nav-row { display: flex; gap: 0.4rem; justify-content: flex-end; }
+.icon-nav-item {
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: 1px solid var(--border);
+  color: var(--muted);
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.icon-nav-item svg { width: 18px; height: 18px; }
+.icon-nav-item:hover { background: var(--accent-faded); color: var(--text); border-color: var(--accent); }
+.icon-nav-item.active { background: var(--accent-faded); color: var(--accent-dark); border-color: var(--accent); }
+@media (prefers-color-scheme: dark) { .icon-nav-item.active { color: #7fd8c2; } }
+:root[data-theme="dark"] .icon-nav-item.active { color: #7fd8c2; }
 
 main { flex: 1; padding: 2rem 2.5rem; max-width: 1180px; }
 
@@ -210,6 +229,8 @@ button { cursor: pointer; }
 
 .settings-panel { max-width: 480px; }
 .settings-panel h3:first-child { margin-top: 0; }
+.settings-panel + .settings-panel { margin-top: 1.25rem; }
+.logout-panel { max-width: 240px; }
 
 .panel-full { grid-column: 1 / -1; }
 
@@ -250,6 +271,11 @@ button { cursor: pointer; }
 
 .result-list { display: flex; flex-direction: column; gap: 0.5rem; max-height: 460px; overflow-y: auto; }
 
+/* Reserve the full results footprint up front so the modal doesn't resize on every
+   keystroke as results stream in, clear, or come back empty/loading. */
+#search-results, #meal-search-results { min-height: 460px; }
+#palette-results { min-height: 360px; }
+
 /* ---------- product cards (search results / recent / frequent / meal items) ---------- */
 
 .result-item {
@@ -259,6 +285,11 @@ button { cursor: pointer; }
   transition: border-color 0.12s;
 }
 .result-item:hover { border-color: var(--accent); }
+.result-item.highlighted { border-color: var(--accent); background: var(--accent-faded); }
+
+.copy-item-row { display: flex; align-items: center; gap: 0.6rem; padding-left: 0.7rem; }
+.copy-item-row .copy-item-checkbox { width: auto; flex-shrink: 0; }
+.copy-item-row .product-card { flex: 1; padding-left: 0; }
 
 .product-card { display: flex; align-items: center; gap: 0.75rem; padding: 0.55rem 0.7rem; position: relative; }
 .thumb {
@@ -350,9 +381,21 @@ button { cursor: pointer; }
 }
 #log-back-to-search { margin-bottom: 0.9rem; }
 
+#palette-modal.modal { align-items: flex-start; padding-top: 12vh; }
+.palette-box { width: min(560px, 94vw); max-height: 70vh; display: flex; flex-direction: column; }
+#palette-input { margin-bottom: 0.8rem; }
+#palette-results { overflow-y: auto; }
+.palette-section-label { margin: 0.6rem 0 0.4rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.command-item .product-card { padding: 0.6rem 0.7rem; }
+.command-item .product-card-body { flex: 1; }
+
 /* ---------- calendar ---------- */
 
 .calendar-layout { display: grid; grid-template-columns: 1.1fr 1fr; gap: 1.5rem; align-items: start; }
+/* Grid tracks default to a minimum size based on their content's min-content width, which
+   ignores a descendant's overflow:hidden/ellipsis further down the tree — a long, unbreakable
+   day-item name would otherwise grow this column (and the whole page) wider than the viewport. */
+.calendar-layout > .panel { min-width: 0; }
 
 .calendar-toolbar { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.9rem; }
 .calendar-toolbar h2 { flex: 1; margin: 0; text-align: center; }
@@ -451,39 +494,30 @@ button { cursor: pointer; }
 @media (max-width: 760px) {
   .shell { flex-direction: column; }
 
-  /* Two rows: [brand ... logout] on top, then a full-width tab bar below it.
-     Trying to fit brand text + 4 tabs + logout in one row leaves the tabs almost no
-     width (verified with a real headless-browser layout check, not just eyeballing). */
+  /* Single row: [brand] [Calendar tab] ... [profile/settings icons]. There's only one
+     item left in the main nav now (Profile/Settings moved to icon buttons), so this
+     fits comfortably without the two-row layout the old 4-tab version needed. */
   .sidebar {
     width: 100%;
+    height: auto;
     flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: space-between;
     align-items: center;
     padding: 0.6rem 0.8rem;
-    gap: 0.5rem 0.75rem;
+    gap: 0.6rem;
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
-  .sidebar .brand { flex-shrink: 0; order: 1; }
-  .sidebar-footer { order: 2; }
-  #tabs { order: 3; flex: 1 1 100%; }
+  .sidebar .brand { flex-shrink: 0; }
+  .brand-name { display: none; } /* just the "V" mark — full name + tab + footer icons don't fit one row */
 
-  #tabs { flex-direction: row; gap: 0.2rem; overflow-x: auto; }
-  .nav-item {
-    width: auto; flex-direction: column; gap: 0.15rem;
-    padding: 0.4rem 0.5rem; font-size: 0.68rem; white-space: nowrap;
-  }
-  .nav-item span { flex: initial; }
-  .nav-item svg { width: 18px; height: 18px; }
+  #tabs { flex-direction: row; flex: 1; gap: 0.2rem; }
+  .nav-item { width: auto; padding: 0.45rem 0.7rem; font-size: 0.8rem; white-space: nowrap; }
   .shortcut-hint { display: none; }
 
   .sidebar-footer {
-    flex-direction: row; align-items: center; gap: 0.5rem;
+    flex-direction: row; align-items: center; gap: 0.4rem;
     border-top: none; padding-top: 0; flex-shrink: 0;
   }
-  #user-email { display: none; } /* still visible on the Profile tab */
-  .sidebar-footer .btn-block { width: auto; padding: 0.4rem 0.7rem; font-size: 0.78rem; }
 
   main { padding: 1rem; }
 }
@@ -499,6 +533,7 @@ button { cursor: pointer; }
   .cal-day .day-kcal { font-size: 0.68rem; }
 
   .result-list { max-height: 50vh; }
+  #search-results, #meal-search-results, #palette-results { min-height: 50vh; }
 
   .login-card { padding: 1.5rem 1.25rem; }
 }
