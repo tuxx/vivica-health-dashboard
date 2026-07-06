@@ -1,5 +1,28 @@
 # TODO
 
+## Deployment
+
+**High priority**
+
+- [ ] **Dockerfile + docker-compose.yml** — containerize the server (Node 22.5+
+  for `node:sqlite`, no build step) so it can be run without a local Node
+  install. Needs a volume for `data/` (session + SQLite cache) so it survives
+  container recreation, and `PORT` already works as an env var.
+- [ ] **Publish container images on GitHub** (GHCR — `ghcr.io/<owner>/<repo>`)
+  — a build-and-push workflow (GitHub Actions) triggered on release/tag, so
+  `docker run`/the compose file can pull a published image instead of
+  building locally.
+
+**Low priority**
+
+- [ ] **Multi-user / multiple concurrent sessions** — right now the server
+  holds exactly one Vivica session (`data/session.json`, a single top-level
+  `session` variable in `server.js`) for the whole process; logging in as a
+  different account replaces it. Making this multi-user means per-browser
+  session identity (cookies + a session store keyed by browser session, not
+  a single global variable) and keeping each user's token/SQLite cache
+  scoped to them instead of shared globally.
+
 ## Further usability ideas
 
 - [ ] **Favorites/pins bar** in the log-food modal (beyond Recent/Frequent) —
