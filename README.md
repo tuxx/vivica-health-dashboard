@@ -1,12 +1,12 @@
 # Vivica Dashboard
 
 <p>
-  <a href="screenshots/calendar-day.png"><img src="screenshots/thumbs/calendar-day-thumb.png" width="200" alt="Day log with collapsible nutrient totals" /></a>
-  <a href="screenshots/log-food-modal.png"><img src="screenshots/thumbs/log-food-modal-thumb.png" width="200" alt="Log food modal with search results" /></a>
-  <a href="screenshots/command-palette.png"><img src="screenshots/thumbs/command-palette-thumb.png" width="200" alt="Command palette" /></a>
-  <a href="screenshots/settings.png"><img src="screenshots/thumbs/settings-thumb.png" width="200" alt="Settings page" /></a>
-  <a href="screenshots/profile.png"><img src="screenshots/thumbs/profile-thumb.png" width="200" alt="Profile page" /></a>
-  <a href="screenshots/mobile.png"><img src="screenshots/thumbs/mobile-thumb.png" width="120" alt="Mobile layout" /></a>
+  <a href="screenshots/calendar-day.png"><img src="screenshots/thumbs/calendar-day-thumb.png" height="140" alt="Day log with collapsible nutrient totals" /></a>
+  <a href="screenshots/log-food-modal.png"><img src="screenshots/thumbs/log-food-modal-thumb.png" height="140" alt="Log food modal with search results" /></a>
+  <a href="screenshots/command-palette.png"><img src="screenshots/thumbs/command-palette-thumb.png" height="140" alt="Command palette" /></a>
+  <a href="screenshots/settings.png"><img src="screenshots/thumbs/settings-thumb.png" height="140" alt="Settings page" /></a>
+  <a href="screenshots/profile.png"><img src="screenshots/thumbs/profile-thumb.png" height="140" alt="Profile page" /></a>
+  <a href="screenshots/mobile.png"><img src="screenshots/thumbs/mobile-thumb.png" height="140" alt="Mobile layout" /></a>
 </p>
 
 <sub>Click any thumbnail for the full-size screenshot.</sub>
