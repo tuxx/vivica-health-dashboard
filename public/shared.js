@@ -8,7 +8,8 @@ const DEFAULT_SETTINGS = {
   timeFormat: '24h',      // '24h' | '12h'
   firstDayOfWeek: 'mon',  // 'mon' | 'sun'
   dateFormat: 'long',     // 'long' | 'dmy' | 'mdy' | 'ymd'
-  totalsCollapsed: true   // whether the day panel's nutrient-tiles grid starts collapsed
+  totalsCollapsed: true,  // whether the day panel's nutrient-tiles grid starts collapsed
+  sidebarCollapsed: false // whether the desktop sidebar starts as an icon-only rail
 };
 
 function loadSettings() {

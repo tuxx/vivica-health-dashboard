@@ -44,7 +44,7 @@ See [todo.md](./todo.md) for what's planned/in progress.
 | --- | --- |
 | `N` / `L` | Log food for the currently-viewed day |
 | `B` | Build a meal |
-| `C` | Calendar (today's log) |
+| `C` | Food Log |
 | `P` | Profile |
 | `S` | Settings |
 | `Ctrl`/`Cmd` + `K` | Command palette |

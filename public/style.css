@@ -23,6 +23,7 @@
 
   --radius: 10px;
   --sidebar-width: 230px;
+  --sidebar-width-collapsed: 72px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -103,7 +104,19 @@ h3 { font-size: 0.85rem; margin: 1.1rem 0 0.5rem; color: var(--muted); text-tran
   font-weight: 700; font-size: 0.95rem;
   flex-shrink: 0;
 }
-.brand-name { font-weight: 600; font-size: 0.95rem; }
+.brand-name { font-weight: 600; font-size: 0.95rem; flex: 1; }
+
+.sidebar-collapse-toggle {
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none;
+  color: var(--muted);
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sidebar-collapse-toggle:hover { background: var(--accent-faded); color: var(--text); }
+.sidebar-collapse-toggle .chevron { width: 16px; height: 16px; transition: transform 0.15s ease; }
 
 #tabs { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; }
 .nav-item {
@@ -157,6 +170,19 @@ kbd {
 .icon-nav-item.active { background: var(--accent-faded); color: var(--accent-dark); border-color: var(--accent); }
 @media (prefers-color-scheme: dark) { .icon-nav-item.active { color: #7fd8c2; } }
 :root[data-theme="dark"] .icon-nav-item.active { color: #7fd8c2; }
+
+/* Collapsible desktop sidebar — icon-only rail. Gated to desktop widths so it can never
+   interact with the mobile top-bar layout further down, regardless of the .collapsed class. */
+@media (min-width: 761px) {
+  .sidebar.collapsed { width: var(--sidebar-width-collapsed); padding-left: 0.75rem; padding-right: 0.75rem; }
+  .sidebar.collapsed .brand { flex-direction: column; gap: 0.5rem; }
+  .sidebar.collapsed .brand-name { display: none; }
+  .sidebar.collapsed .nav-item span,
+  .sidebar.collapsed .shortcut-hint { display: none; }
+  .sidebar.collapsed .nav-item { justify-content: center; padding: 0.55rem; }
+  .sidebar.collapsed .icon-nav-row { flex-direction: column; align-items: center; }
+  .sidebar.collapsed .sidebar-collapse-toggle .chevron { transform: rotate(180deg); }
+}
 
 main { flex: 1; padding: 2rem 2.5rem; max-width: 1180px; }
 
@@ -527,7 +553,7 @@ button { cursor: pointer; }
 @media (max-width: 760px) {
   .shell { flex-direction: column; }
 
-  /* Single row: [brand] [Calendar tab] ... [profile/settings icons]. There's only one
+  /* Single row: [brand] [Food Log tab] ... [profile/settings icons]. There's only one
      item left in the main nav now (Profile/Settings moved to icon buttons), so this
      fits comfortably without the two-row layout the old 4-tab version needed. */
   .sidebar {
@@ -542,6 +568,7 @@ button { cursor: pointer; }
   }
   .sidebar .brand { flex-shrink: 0; }
   .brand-name { display: none; } /* just the "V" mark — full name + tab + footer icons don't fit one row */
+  .sidebar-collapse-toggle { display: none; } /* collapse is a desktop-only concept */
 
   #tabs { flex-direction: row; flex: 1; gap: 0.2rem; }
   .nav-item { width: auto; padding: 0.45rem 0.7rem; font-size: 0.8rem; white-space: nowrap; }

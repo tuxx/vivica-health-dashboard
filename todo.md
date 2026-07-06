@@ -8,10 +8,6 @@
   for `node:sqlite`, no build step) so it can be run without a local Node
   install. Needs a volume for `data/` (session + SQLite cache) so it survives
   container recreation, and `PORT` already works as an env var.
-- [ ] **Publish container images on GitHub** (GHCR — `ghcr.io/<owner>/<repo>`)
-  — a build-and-push workflow (GitHub Actions) triggered on release/tag, so
-  `docker run`/the compose file can pull a published image instead of
-  building locally.
 
 **Low priority**
 
@@ -32,7 +28,7 @@
   plain `number` inputs; on desktop, arrow-key nudge with a sane step, and
   remembering last-used amount per product, would speed up repeat entries.
 - [x] **Command palette (`Ctrl`/`Cmd`+`K`)** — `#palette-modal` in
-  `app.js`/`index.html`. Static navigation commands (Calendar, Profile,
+  `app.js`/`index.html`. Static navigation commands (Food Log, Profile,
   Settings, Log food, Build a meal, Copy from another day, Keyboard
   shortcuts) filtered by substring match; once the query is 2+ characters a
   debounced live product/meal search (same `/nutrition/search` endpoint)
@@ -69,6 +65,21 @@
 - [ ] **Remember last day-part override per session** — if the user overrides
   the guessed day-part once, reuse that override for subsequent logs in the
   same sitting instead of re-guessing each time.
+- [x] **Main nav renamed "Calendar" → "Food Log"**, with a new list icon —
+  the old calendar-grid glyph/label was left over from before the day-view
+  redesign. Display text and icon only; internal identifiers
+  (`data-tab="calendar"`, `calendar.js`, `showTab('calendar')`) are
+  unchanged. Updated everywhere the label appears: sidebar, shortcuts
+  modal, Settings page, command palette.
+- [x] **Collapsible desktop sidebar** — a toggle in the `.brand` row shrinks
+  the sidebar to a 72px icon-only rail (`--sidebar-width-collapsed` in
+  `style.css`), hiding labels and stacking the footer icons vertically.
+  Same `saveSettings()`/`localStorage` pattern as `totalsCollapsed`, via a
+  new `sidebarCollapsed` key in `DEFAULT_SETTINGS` (`shared.js`). Gated
+  behind `@media (min-width: 761px)` so the mobile top-bar layout
+  (`max-width: 760px`) is completely untouched. Verified toggle,
+  reload-persistence, nav/footer routing while collapsed, and that mobile
+  width always shows the original full bar with the toggle hidden.
 
 ## Settings page (done)
 

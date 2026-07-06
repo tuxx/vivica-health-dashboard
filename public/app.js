@@ -246,6 +246,14 @@ $('#shortcuts-modal').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) closeShortcutsModal();
 });
 
+// ---------- Sidebar collapse (desktop only — the mobile layout ignores this class) ----------
+
+$('.sidebar').classList.toggle('collapsed', currentSettings.sidebarCollapsed);
+$('#sidebar-collapse-toggle').addEventListener('click', () => {
+  const isCollapsed = $('.sidebar').classList.toggle('collapsed');
+  saveSettings({ sidebarCollapsed: isCollapsed });
+});
+
 // ---------- Command palette ----------
 // Ctrl/Cmd+K from anywhere. Static navigation commands filtered by substring match,
 // plus a live product/meal search once the query is long enough — picking a product
@@ -255,7 +263,7 @@ function paletteTargetDate() {
   return typeof calendarSelectedDate !== 'undefined' && calendarSelectedDate ? calendarSelectedDate : todayStr();
 }
 const PALETTE_COMMANDS = [
-  { label: 'Calendar', hint: 'C', action: () => showTab('calendar') },
+  { label: 'Food Log', hint: 'C', action: () => showTab('calendar') },
   { label: 'Profile', hint: 'P', action: () => showTab('profile') },
   { label: 'Settings', hint: 'S', action: () => showTab('settings') },
   { label: 'Log food for today', hint: 'N', action: () => openLogModal(paletteTargetDate()) },
