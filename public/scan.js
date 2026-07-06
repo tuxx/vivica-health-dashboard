@@ -124,7 +124,31 @@ async function startScan(cameraIdOrConstraints, attempt = 1) {
     scanStartedAt = Date.now();
     await html5Qrcode.start(
       cameraIdOrConstraints,
-      { fps: 10, qrbox: { width: 250, height: 150 }, formatsToSupport: SCAN_FORMATS },
+      {
+        fps: 15,
+        // A viewfinder-relative box (rather than a small fixed pixel size) so the scan
+        // region uses most of the frame — the old fixed 250x150 box only covered a small
+        // slice of a high-res camera feed, forcing users to get uncomfortably close (and
+        // out of focus range) just to make a barcode fill it.
+        qrbox: (viewfinderWidth, viewfinderHeight) => {
+          const boxWidth = Math.round(Math.min(viewfinderWidth, viewfinderHeight) * 0.9);
+          return { width: boxWidth, height: Math.round(boxWidth * 0.5) };
+        },
+        formatsToSupport: SCAN_FORMATS,
+        // Passing videoConstraints makes the library use ONLY these constraints for
+        // getUserMedia (it ignores the deviceId passed as the first argument above in
+        // that case) — so the deviceId has to be repeated in here to keep the back-camera
+        // selection working. Requesting a higher resolution gives the decoder more detail
+        // to work with at a normal distance; focusMode: 'continuous' (best-effort, ignored
+        // by browsers/devices that don't support it) asks for continuous autofocus instead
+        // of whatever fixed/far-biased focus behavior was making close-up scans blurry.
+        videoConstraints: {
+          deviceId: { exact: cameraIdOrConstraints },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          advanced: [{ focusMode: 'continuous' }]
+        }
+      },
       onScanSuccess,
       onScanFrameFailure
     );
