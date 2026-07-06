@@ -35,6 +35,7 @@ window.initCalendar = function initCalendar() {
   });
 
   renderCalendarMonth();
+  selectDay(todayStr());
 };
 
 window.invalidateCalendarDay = function invalidateCalendarDay(ds) {
@@ -190,20 +191,31 @@ function renderDayPanel(ds, data) {
   const items = data.items || {};
   const orderedDayParts = (window.dayParts && window.dayParts.length ? window.dayParts : Object.keys(items));
 
-  const groups = orderedDayParts
-    .filter((dp) => items[dp] && items[dp].length)
-    .map((dp) => {
-      const rows = items[dp].map((item) => renderDayItemRow(item, ds)).join('');
-      return `<div class="day-part-group">
-        <h3>${escapeHtml(ucFirst(dp.replace(/_/g, ' ')))}</h3>
-        ${rows}
-      </div>`;
-    });
+  const groups = orderedDayParts.map((dp) => {
+    const dayItems = items[dp] || [];
+    const rows = dayItems.length
+      ? dayItems.map((item) => renderDayItemRow(item, ds)).join('')
+      : '<p class="muted day-part-empty">Nothing logged.</p>';
+    const label = escapeHtml(ucFirst(dp.replace(/_/g, ' ')));
+    return `<div class="day-part-group">
+      <div class="day-part-header">
+        <h3>${label}</h3>
+        <button type="button" class="btn-ghost btn-icon add-day-part" title="Log food for ${label}"
+          data-date="${escapeHtml(ds)}" data-day-part="${escapeHtml(dp)}">+</button>
+      </div>
+      ${rows}
+    </div>`;
+  });
 
   itemsEl.innerHTML = groups.length ? groups.join('') : '<p class="muted">Nothing logged for this day.</p>';
 
   itemsEl.querySelectorAll('[data-delete-pivot]').forEach((btn) => {
     btn.addEventListener('click', () => deleteLoggedItem(btn.dataset, ds));
+  });
+  itemsEl.querySelectorAll('.add-day-part').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (window.startLogForDayPart) window.startLogForDayPart(btn.dataset.date, btn.dataset.dayPart);
+    });
   });
 }
 

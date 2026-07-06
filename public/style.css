@@ -114,6 +114,17 @@ h3 { font-size: 0.85rem; margin: 1.1rem 0 0.5rem; color: var(--muted); text-tran
   width: 100%;
 }
 .nav-item svg { width: 19px; height: 19px; flex-shrink: 0; }
+.nav-item span { flex: 1; }
+.shortcut-hint {
+  font: 600 0.72rem/1 var(--font, inherit);
+  color: var(--muted);
+  background: var(--accent-faded);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.15rem 0.4rem;
+  flex-shrink: 0;
+}
+.nav-item.active .shortcut-hint { color: inherit; }
 .nav-item:hover { background: var(--accent-faded); color: var(--text); }
 .nav-item.active { background: var(--accent-faded); color: var(--accent-dark); font-weight: 600; }
 @media (prefers-color-scheme: dark) { .nav-item.active { color: #7fd8c2; } }
@@ -345,7 +356,10 @@ button { cursor: pointer; }
 .day-total-tile .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
 
 .day-part-group { margin-bottom: 1rem; }
-.day-part-group h3 { margin-top: 0; }
+.day-part-group h3 { margin: 0; }
+.day-part-header { display: flex; align-items: center; gap: 0.5rem; }
+.day-part-header h3 { flex: 1; }
+.day-part-empty { font-size: 0.85rem; margin: 0.2rem 0 0; }
 
 .day-item {
   display: flex; align-items: center; gap: 0.65rem;

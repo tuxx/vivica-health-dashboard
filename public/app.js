@@ -5,6 +5,7 @@ let dayParts = [];
 let selectedLogItem = null;   // merged search-result + item_data, for the "Log food" tab
 let mealItems = [];           // items being assembled into a new meal
 let pendingMealProduct = null; // product awaiting a quantity before being added to mealItems
+let logContext = null;        // { date, day_part } set by the calendar's "+" button, consumed by selectLogItem
 
 // ---------- 24h time inputs (guaranteed HH:MM regardless of browser/OS locale) ----------
 
@@ -45,6 +46,8 @@ async function enterApp() {
   $('#login-view').classList.add('hidden');
   showTab('calendar');
   if (window.initCalendar) window.initCalendar();
+
+  $('#meal-day-part').value = guessDayPartForTime(dayParts);
 }
 
 function fillDayPartSelect(select) {
@@ -95,7 +98,10 @@ $('#logout-btn').addEventListener('click', async () => {
 // ---------- tabs ----------
 
 $$('#tabs button[data-tab]').forEach((btn) => {
-  btn.addEventListener('click', () => showTab(btn.dataset.tab));
+  btn.addEventListener('click', () => {
+    if (btn.dataset.tab !== 'log') logContext = null;
+    showTab(btn.dataset.tab);
+  });
 });
 
 function showTab(name) {
@@ -104,6 +110,65 @@ function showTab(name) {
   $('#meals-view').classList.toggle('hidden', name !== 'meals');
   $('#calendar-view').classList.toggle('hidden', name !== 'calendar');
 }
+
+// ---------- keyboard shortcuts ----------
+// Single-key shortcuts, active whenever focus isn't in a text field/select, so
+// they never fight with typing. "N" is the fast path for the everyday action
+// (log a food/meal): jumps straight to the Log food tab with the search box focused.
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+  if (e.key === 'Escape') {
+    if (!$('#qty-modal').classList.contains('hidden')) {
+      $('#qty-modal-cancel').click();
+      e.preventDefault();
+    } else {
+      document.activeElement?.blur();
+    }
+    return;
+  }
+
+  const target = e.target;
+  const isTyping = target instanceof HTMLElement &&
+    (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
+  if (isTyping || $('#shell').classList.contains('hidden')) return;
+
+  switch (e.key.toLowerCase()) {
+    case 'n':
+    case 'l':
+      logContext = null;
+      showTab('log');
+      $('#search-input').focus();
+      e.preventDefault();
+      break;
+    case 'c':
+      showTab('calendar');
+      e.preventDefault();
+      break;
+    case 'b':
+      showTab('meals');
+      e.preventDefault();
+      break;
+    case '/': {
+      const visibleSearch = $('#log-view:not(.hidden) #search-input') || $('#meals-view:not(.hidden) #meal-search-input');
+      if (visibleSearch) { visibleSearch.focus(); e.preventDefault(); }
+      break;
+    }
+  }
+});
+
+// Enter-to-confirm in the quantity modal (it's not a <form>, so Enter does nothing by default).
+$('#qty-modal-amount').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); $('#qty-modal-confirm').click(); }
+});
+
+// Called from the calendar's day panel "+" buttons to jump into the Log food tab
+// with the date/day-part already decided, instead of defaulting to today/blank.
+window.startLogForDayPart = function startLogForDayPart(date, dayPart) {
+  logContext = { date, day_part: dayPart };
+  showTab('log');
+  $('#search-input').focus();
+};
 
 // ---------- Log food tab: search ----------
 
@@ -158,11 +223,14 @@ async function loadQuickList(path) {
 }
 
 async function selectLogItem(item) {
+  const ctx = logContext;
+  logContext = null;
+
   selectedLogItem = {
     ...item,
-    date: todayStr(),
+    date: ctx?.date || todayStr(),
     time: nowTimeStr(),
-    day_part: '',
+    day_part: ctx?.day_part || guessDayPartForTime(dayParts),
     amount_value: '',
     amount_pieces: '',
     selected_conversion_id: '',
@@ -177,7 +245,7 @@ async function selectLogItem(item) {
       body: { type, id: item.id }
     });
     selectedLogItem = Object.assign({}, itemData, selectedLogItem);
-    if (itemData.suggested_day_part) selectedLogItem.day_part = itemData.suggested_day_part;
+    if (!ctx?.day_part && itemData.suggested_day_part) selectedLogItem.day_part = itemData.suggested_day_part;
     if (itemData.conversions && itemData.conversions.length) {
       selectedLogItem.specify_method = 'conversion';
       selectedLogItem.selected_conversion_id = itemData.suggested_nutrient_conversion_id || itemData.conversions[0].id;

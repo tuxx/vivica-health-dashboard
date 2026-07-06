@@ -121,6 +121,31 @@ function foodIcon() {
   </svg>`;
 }
 
+// Picks the day_part whose typical time window best matches `now`, out of the
+// user's actual day_parts (dynamic strings like 'breakfast'/'snack_afternoon').
+// Falls back to the first day_part if nothing matches a known keyword.
+const DAY_PART_TIME_WINDOWS = [
+  { re: /breakfast|morning/i, start: 5, end: 10.5 },
+  { re: /lunch|midday|\bnoon\b/i, start: 11, end: 14 },
+  { re: /afternoon/i, start: 14, end: 17 },
+  { re: /dinner|supper|evening/i, start: 17, end: 21.5 },
+  { re: /night/i, start: 21.5, end: 29 } // wraps past midnight
+];
+function guessDayPartForTime(dayParts, now = new Date()) {
+  if (!dayParts || !dayParts.length) return '';
+  let hour = now.getHours() + now.getMinutes() / 60;
+  let best = null;
+  let bestDist = Infinity;
+  for (const dp of dayParts) {
+    const win = DAY_PART_TIME_WINDOWS.find((w) => w.re.test(dp));
+    if (!win) continue;
+    const h = hour < win.start - 12 ? hour + 24 : hour; // handle post-midnight "night"
+    const dist = h < win.start ? win.start - h : h > win.end ? h - win.end : 0;
+    if (dist < bestDist) { bestDist = dist; best = dp; }
+  }
+  return best || dayParts[0];
+}
+
 function debounce(fn, ms) {
   let t = null;
   return (...args) => {
