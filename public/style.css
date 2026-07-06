@@ -115,14 +115,20 @@ h3 { font-size: 0.85rem; margin: 1.1rem 0 0.5rem; color: var(--muted); text-tran
 }
 .nav-item svg { width: 19px; height: 19px; flex-shrink: 0; }
 .nav-item span { flex: 1; }
-.shortcut-hint {
-  font: 600 0.72rem/1 var(--font, inherit);
+kbd {
+  font: 600 0.72rem/1 inherit;
   color: var(--muted);
   background: var(--accent-faded);
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 0.15rem 0.4rem;
-  flex-shrink: 0;
+}
+.shortcut-hint { flex-shrink: 0; }
+.shortcut-hint-inline {
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  border: none;
+  margin-left: 0.3rem;
 }
 .nav-item.active .shortcut-hint { color: inherit; }
 .nav-item:hover { background: var(--accent-faded); color: var(--text); }
@@ -393,6 +399,20 @@ button { cursor: pointer; }
 }
 .day-total-tile .value { font-weight: 700; font-size: 1.05rem; }
 .day-total-tile .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.tile-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+  margin-top: 0.4rem;
+}
+.tile-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.tile-bar-fill.over-goal { background: var(--warning); }
 
 .day-part-group { margin-bottom: 1rem; }
 .day-part-group h3 { margin: 0; }

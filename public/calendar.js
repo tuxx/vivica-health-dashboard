@@ -207,9 +207,13 @@ function renderDayPanel(ds, data) {
     const value = round(stats[key] || 0, key === 'enercc_kcal' ? 0 : 1);
     const goalVal = parseInt(goal[key], 10);
     const goalStr = goalVal ? ` / ${goalVal}` : '';
+    const bar = goalVal
+      ? `<div class="tile-bar"><div class="tile-bar-fill${value > goalVal ? ' over-goal' : ''}" style="width: ${Math.min(100, round(value / goalVal * 100, 1))}%"></div></div>`
+      : '';
     return `<div class="day-total-tile">
       <div class="value">${value}${goalStr} ${unit}</div>
       <div class="label">${label}</div>
+      ${bar}
     </div>`;
   }).join('');
 

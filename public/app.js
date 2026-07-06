@@ -164,7 +164,10 @@ document.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
 
   if (e.key === 'Escape') {
-    if (!$('#log-modal').classList.contains('hidden')) {
+    if (!$('#shortcuts-modal').classList.contains('hidden')) {
+      closeShortcutsModal();
+      e.preventDefault();
+    } else if (!$('#log-modal').classList.contains('hidden')) {
       closeLogModal();
       e.preventDefault();
     } else if (!$('#qty-modal').classList.contains('hidden')) {
@@ -213,7 +216,23 @@ document.addEventListener('keydown', (e) => {
       if (visibleSearch) { visibleSearch.focus(); e.preventDefault(); }
       break;
     }
+    case '?':
+      openShortcutsModal();
+      e.preventDefault();
+      break;
   }
+});
+
+function openShortcutsModal() {
+  $('#shortcuts-modal').classList.remove('hidden');
+}
+function closeShortcutsModal() {
+  $('#shortcuts-modal').classList.add('hidden');
+}
+$('#shortcuts-open').addEventListener('click', openShortcutsModal);
+$('#shortcuts-close').addEventListener('click', closeShortcutsModal);
+$('#shortcuts-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeShortcutsModal();
 });
 
 // Enter-to-confirm in the quantity modal (it's not a <form>, so Enter does nothing by default).
