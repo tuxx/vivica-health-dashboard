@@ -1,5 +1,7 @@
 # Vivica Dashboard
 
+![Screenshot](https://i.imgur.com/sRoIYMq.png)
+
 A self-hosted web dashboard for logging food with [Vivica Health](https://vivica.health), so you don't have to use the Android app.
 
 It's a small Node.js server that talks to the same API the mobile app uses (`api.vivica.health`), plus a plain HTML/JS frontend for:
@@ -39,7 +41,7 @@ PORT=8080 npm start
 
 ### Vivica API
 
-See API_REFERENCE.md
+See [API_REFERENCE.md](./API_REFERENCE.md)
 
 ## Self-hosting
 
