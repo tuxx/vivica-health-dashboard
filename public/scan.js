@@ -6,6 +6,18 @@
 
 let html5Qrcode = null; // the active Html5Qrcode instance, or null when not scanning
 
+// Every open/close/camera-switch operation runs through this chain so they can never
+// overlap. Without it, closing the modal (which stops the camera without waiting) and
+// then quickly reopening it could let a fresh startScan() begin while the old stop was
+// still mid-flight — forceReleaseCameraTracks() would then find the *new* stream (the
+// old one's video element already gone) and kill it, making the camera look like it
+// never opens.
+let scanOpChain = Promise.resolve();
+function runExclusive(fn) {
+  scanOpChain = scanOpChain.then(fn, fn);
+  return scanOpChain;
+}
+
 const SCAN_FORMATS = [
   Html5QrcodeSupportedFormats.EAN_13,
   Html5QrcodeSupportedFormats.EAN_8,
@@ -47,7 +59,7 @@ async function openScanModal() {
   try {
     cameras = await Html5Qrcode.getCameras();
   } catch (err) {
-    handleScanError(err);
+    await handleScanError(err);
     return;
   }
 
@@ -90,9 +102,12 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-$('#scan-camera-select').addEventListener('change', async (e) => {
-  await stopScan();
-  await startScan(e.target.value);
+$('#scan-camera-select').addEventListener('change', (e) => {
+  const cameraId = e.target.value;
+  runExclusive(async () => {
+    await stopScan();
+    await startScan(cameraId);
+  });
 });
 
 let scanStartedAt = 0;
@@ -121,7 +136,7 @@ async function startScan(cameraIdOrConstraints, isRetry) {
       await startScan(cameraIdOrConstraints, true);
       return;
     }
-    handleScanError(err);
+    await handleScanError(err);
   }
 }
 
@@ -147,13 +162,13 @@ function onScanFrameFailure() {
 }
 
 async function onScanSuccess(decodedText) {
-  await stopScan();
+  await runExclusive(stopScan);
   closeScanModal();
   $('#search-input').value = decodedText;
   runNutritionSearch(decodedText);
 }
 
-function handleScanError(err) {
+async function handleScanError(err) {
   const name = err && err.name;
   const msg = String((err && err.message) || err || '');
   let text;
@@ -169,7 +184,9 @@ function handleScanError(err) {
   // Always append the raw error so it's visible on-device without remote debugging —
   // the categorized message above can be wrong (browsers don't always set err.name).
   setScanError(`${text} (${name || 'Error'}: ${msg})`);
-  stopScan();
+  // Awaited (not fire-and-forget) so callers running inside the runExclusive queue
+  // (see top of file) don't return before this cleanup actually finishes.
+  await stopScan();
 }
 
 async function stopScan() {
@@ -186,10 +203,10 @@ async function stopScan() {
 
 function closeScanModal() {
   $('#scan-modal').classList.add('hidden');
-  stopScan();
+  runExclusive(stopScan);
 }
 
-$('#scan-barcode-btn').addEventListener('click', openScanModal);
+$('#scan-barcode-btn').addEventListener('click', () => runExclusive(openScanModal));
 $('#scan-modal-close').addEventListener('click', closeScanModal);
 $('#scan-modal').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) closeScanModal();
