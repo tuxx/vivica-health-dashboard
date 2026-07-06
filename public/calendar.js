@@ -40,7 +40,7 @@ window.initCalendar = function initCalendar() {
     renderWeekdayHeader();
     if (!$('#calendar-popover').classList.contains('hidden')) renderCalendarMonth();
     if (calendarSelectedDate) {
-      $('#day-panel-date').textContent = formatDateDisplay(calendarSelectedDate);
+      $('#day-panel-date-text').textContent = formatDateDisplay(calendarSelectedDate);
       renderDayPanel(calendarSelectedDate, calendarCache[calendarSelectedDate]);
     }
     $('#day-totals-section').classList.toggle('collapsed', currentSettings.totalsCollapsed);
@@ -217,8 +217,9 @@ function updateDayCell(ds, data) {
 async function selectDay(ds) {
   calendarSelectedDate = ds;
   $$('.cal-day').forEach((el) => el.classList.toggle('selected', el.dataset.date === ds));
+  $('#day-today').classList.toggle('is-active', ds === todayStr());
 
-  $('#day-panel-date').textContent = formatDateDisplay(ds);
+  $('#day-panel-date-text').textContent = formatDateDisplay(ds);
   $('#day-panel-items').innerHTML = '<p class="muted">Loading…</p>';
   $('#day-panel-totals').innerHTML = '';
 

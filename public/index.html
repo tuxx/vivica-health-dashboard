@@ -72,7 +72,10 @@
         <div class="day-panel-page">
           <div class="day-panel-header">
             <button id="day-prev" class="btn-ghost btn-icon" aria-label="Previous day">‹</button>
-            <button type="button" id="day-panel-date" class="day-title-btn"></button>
+            <button type="button" id="day-panel-date" class="day-title-btn">
+              <span id="day-panel-date-text"></span>
+              <svg class="chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+            </button>
             <button id="day-next" class="btn-ghost btn-icon" aria-label="Next day">›</button>
             <button id="day-today" class="btn-ghost small">Today</button>
             <span class="spacer"></span>
@@ -210,8 +213,6 @@
         <div class="quick-lists">
           <button id="show-recent" class="btn-ghost small">Recent</button>
           <button id="show-frequent" class="btn-ghost small">Frequent</button>
-          <button id="meal-builder-open" class="btn-ghost small">+ New meal <kbd class="shortcut-hint">B</kbd></button>
-          <button id="copy-day-open" class="btn-ghost small">+ Copy from day</button>
         </div>
         <div class="row search-with-scan">
           <input type="search" id="search-input" placeholder="Search products, meals, supplements..." />
@@ -220,6 +221,11 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 7V5a1 1 0 011-1h2M4 17v2a1 1 0 001 1h2M20 7V5a1 1 0 00-1-1h-2M20 17v2a1 1 0 01-1 1h-2M7 8v8M10 8v8M13 8v8M16 8v8" />
             </svg>
           </button>
+        </div>
+        <div class="alt-actions">
+          <span class="alt-actions-divider">or</span>
+          <button type="button" id="meal-builder-open" class="btn-link">+ New meal <kbd class="shortcut-hint">B</kbd></button>
+          <button type="button" id="copy-day-open" class="btn-link">+ Copy from day</button>
         </div>
         <div id="search-results" class="result-list"></div>
       </div>

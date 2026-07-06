@@ -391,6 +391,7 @@ function backToSearchStep() {
   $('#log-error').classList.add('hidden');
   $('#log-success').classList.add('hidden');
   $('#search-input').value = '';
+  setActiveQuickButton('show-recent');
   loadQuickList('/products/recent'); // default the results box to recent items instead of leaving it empty
   $('#search-input').focus();
 }
@@ -448,6 +449,7 @@ $('#log-back-to-search').addEventListener('click', backToSearchStep);
 
 $('#search-input').addEventListener('input', debounce((e) => {
   const val = e.target.value;
+  setActiveQuickButton(null);
   if (val.length < 2) { $('#search-results').innerHTML = ''; return; }
   runNutritionSearch(val);
 }, 350));
@@ -489,8 +491,13 @@ function renderResultList(container, items, { onClick, metaFn } = {}) {
   }
 }
 
-$('#show-recent').addEventListener('click', () => loadQuickList('/products/recent'));
-$('#show-frequent').addEventListener('click', () => loadQuickList('/products/frequent'));
+function setActiveQuickButton(id) {
+  $('#show-recent').classList.toggle('is-active', id === 'show-recent');
+  $('#show-frequent').classList.toggle('is-active', id === 'show-frequent');
+}
+
+$('#show-recent').addEventListener('click', () => { setActiveQuickButton('show-recent'); loadQuickList('/products/recent'); });
+$('#show-frequent').addEventListener('click', () => { setActiveQuickButton('show-frequent'); loadQuickList('/products/frequent'); });
 
 async function loadQuickList(path) {
   const container = $('#search-results');

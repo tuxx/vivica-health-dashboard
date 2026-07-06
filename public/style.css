@@ -242,8 +242,24 @@ button { cursor: pointer; }
   color: var(--text);
 }
 .btn-ghost:hover { border-color: var(--accent); color: var(--accent-dark); }
+.btn-ghost:active { background: var(--accent-faded); border-color: var(--accent); color: var(--accent-dark); }
 .btn-ghost.small, .btn-primary.small { padding: 0.35rem 0.6rem; font-size: 0.82rem; }
 .btn-ghost.btn-icon { padding: 0.35rem 0.55rem; line-height: 1; font-size: 1.1rem; }
+.btn-ghost.is-active { background: var(--accent-faded); color: var(--accent-dark); border-color: var(--accent); }
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--accent-dark);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.2rem 0.3rem;
+  border-radius: 6px;
+}
+.btn-link:hover { text-decoration: underline; }
+.btn-link:active { background: var(--accent-faded); }
 
 .btn-block { width: 100%; }
 
@@ -292,6 +308,11 @@ button { cursor: pointer; }
 }
 
 .quick-lists { display: flex; gap: 0.5rem; margin-bottom: 0.7rem; }
+
+.alt-actions { display: flex; align-items: center; gap: 0.9rem; margin: 0.5rem 0 0.9rem; }
+.alt-actions-divider { color: var(--muted); font-size: 0.78rem; }
+.alt-actions-divider::before { content: "— "; }
+.alt-actions-divider::after { content: " —"; }
 
 #search-input, #meal-search-input { margin-bottom: 0.8rem; }
 
@@ -453,6 +474,7 @@ button { cursor: pointer; }
 .day-panel-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.9rem; }
 .day-panel-header .spacer { flex: 1; }
 .day-title-btn {
+  display: inline-flex; align-items: center; gap: 0.3rem;
   background: none; border: none; cursor: pointer;
   font-size: 1.3rem; font-weight: 600; letter-spacing: -0.01em;
   color: var(--text);
@@ -461,6 +483,8 @@ button { cursor: pointer; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .day-title-btn:hover { background: var(--accent-faded); color: var(--accent-dark); }
+.day-title-btn .chevron-down { width: 16px; height: 16px; flex-shrink: 0; color: var(--muted); }
+.day-title-btn:hover .chevron-down { color: var(--accent-dark); }
 
 .calendar-popover {
   position: fixed;
