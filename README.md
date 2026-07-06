@@ -77,6 +77,26 @@ The port can be changed with the `PORT` environment variable:
 PORT=8080 npm start
 ```
 
+### Docker
+
+No image to build or pull — since there's no build step, `docker-compose.yml`
+just runs the plain `node:22-alpine` image against the repo, bind-mounted in
+directly:
+
+```bash
+git clone <this repo>
+cd vivica-health-dashboard
+docker compose up -d
+```
+
+Then open `http://localhost:4173` and sign in. `data/` (session + SQLite
+cache) is part of the same bind mount, so it lives in the repo directory and
+survives container restarts.
+
+To change the port, edit the `ports:` mapping in `docker-compose.yml` (the
+container always listens on `4173` internally — map it to whatever host port
+you want, e.g. `"8080:4173"`).
+
 ## How it works
 
 - The server proxies requests to the real Vivica API and keeps your session token server-side in `data/session.json` — it never touches your device or Google account, and credentials aren't stored anywhere except that local session file.
@@ -95,7 +115,7 @@ See [API_REFERENCE.md](./API_REFERENCE.md)
 
 ## Self-hosting
 
-This is meant to run wherever you'd run any small Node app: a home server, a Raspberry Pi, a VPS, etc. Since it holds a live session token for your Vivica account, treat `data/session.json` like a credential and don't expose the server to the open internet without authentication in front of it (a reverse proxy with basic auth, a VPN/Tailscale, etc.).
+This is meant to run wherever you'd run any small Node app: a home server, a Raspberry Pi, a VPS, etc., either directly with Node or via [Docker](#docker). Since it holds a live session token for your Vivica account, treat `data/session.json` like a credential and don't expose the server to the open internet without authentication in front of it (a reverse proxy with basic auth, a VPN/Tailscale, etc.).
 
 ## Disclaimer
 

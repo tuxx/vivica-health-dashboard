@@ -2,12 +2,14 @@
 
 ## Deployment
 
-**High priority**
-
-- [ ] **Dockerfile + docker-compose.yml** — containerize the server (Node 22.5+
-  for `node:sqlite`, no build step) so it can be run without a local Node
-  install. Needs a volume for `data/` (session + SQLite cache) so it survives
-  container recreation, and `PORT` already works as an env var.
+- [x] **docker-compose.yml** — `docker compose up -d` runs the server
+  straight from the stock `node:22-alpine` image with the repo bind-mounted
+  in (`.:/app`); no Dockerfile, since there's no build step or npm install
+  to bake into an image. `data/` (session + SQLite cache) is part of the
+  same mount, so it lives in the repo directory and survives restarts.
+  `PORT` still works as an env var for anyone running outside Docker. No
+  image is published to a registry — the app is small enough that this is
+  simpler than maintaining a GHCR release pipeline.
 
 **Low priority**
 

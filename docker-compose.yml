@@ -1,0 +1,10 @@
+services:
+  vivica-dashboard:
+    image: node:22-alpine
+    working_dir: /app
+    command: node server.js
+    ports:
+      - "4173:4173"
+    volumes:
+      - .:/app
+    restart: unless-stopped
