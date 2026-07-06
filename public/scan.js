@@ -109,8 +109,13 @@ async function startScan(cameraIdOrConstraints, isRetry) {
     );
     setScanStatus('Point the camera at a barcode…');
   } catch (err) {
-    // AbortError here is almost always the same hardware-release race the delay
-    // above tries to avoid — worth one automatic retry before bothering the user.
+    // When start() fails partway through (e.g. this AbortError), html5-qrcode can have
+    // already acquired the camera's MediaStream internally before the failure — but
+    // since it never finished setting up, that stream is orphaned: its own stop()/
+    // clear() can't reach it (the library never recorded it), so it isn't stopped by
+    // anything the library exposes. forceReleaseCameraTracks() finds it directly via
+    // the DOM instead and stops it, regardless of what the library thinks happened.
+    forceReleaseCameraTracks();
     if (!isRetry && err && err.name === 'AbortError') {
       await delay(500);
       await startScan(cameraIdOrConstraints, true);
@@ -118,6 +123,19 @@ async function startScan(cameraIdOrConstraints, isRetry) {
     }
     handleScanError(err);
   }
+}
+
+// Safety net independent of html5-qrcode's own bookkeeping: directly stop any live
+// camera tracks still attached under the scan reader. Covers cases where the library's
+// start()/stop() lifecycle leaves a stream running that it no longer has a handle to.
+function forceReleaseCameraTracks() {
+  document.querySelectorAll('#scan-reader video').forEach((video) => {
+    const stream = video.srcObject;
+    if (stream && typeof stream.getTracks === 'function') {
+      stream.getTracks().forEach((track) => track.stop());
+    }
+    video.srcObject = null;
+  });
 }
 
 function onScanFrameFailure() {
@@ -155,11 +173,15 @@ function handleScanError(err) {
 }
 
 async function stopScan() {
-  if (!html5Qrcode) return;
-  const instance = html5Qrcode;
-  html5Qrcode = null;
-  try { await instance.stop(); } catch { /* not currently scanning */ }
-  try { instance.clear(); } catch { /* nothing to clear */ }
+  if (html5Qrcode) {
+    const instance = html5Qrcode;
+    html5Qrcode = null;
+    try { await instance.stop(); } catch { /* not currently scanning */ }
+    try { instance.clear(); } catch { /* nothing to clear */ }
+  }
+  // Always run, even when there was no tracked instance — catches streams orphaned
+  // by a failed start() (see the comment in startScan's catch block).
+  forceReleaseCameraTracks();
 }
 
 function closeScanModal() {

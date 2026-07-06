@@ -68,7 +68,7 @@ window.initCalendar = function initCalendar() {
   document.addEventListener('click', (e) => {
     const popover = $('#calendar-popover');
     if (popover.classList.contains('hidden')) return;
-    if (popover.contains(e.target) || e.target === $('#day-panel-date')) return;
+    if (popover.contains(e.target) || $('#day-panel-date').contains(e.target)) return;
     closeCalendarPopover();
   });
 

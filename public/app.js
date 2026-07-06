@@ -209,11 +209,6 @@ document.addEventListener('keydown', (e) => {
       showTab('calendar');
       e.preventDefault();
       break;
-    case 'b':
-      openLogModal(typeof calendarSelectedDate !== 'undefined' && calendarSelectedDate ? calendarSelectedDate : todayStr());
-      openMealBuilder();
-      e.preventDefault();
-      break;
     case 's':
       showTab('settings');
       e.preventDefault();
@@ -270,7 +265,7 @@ const PALETTE_COMMANDS = [
   { label: 'Profile', hint: 'P', action: () => showTab('profile') },
   { label: 'Settings', hint: 'S', action: () => showTab('settings') },
   { label: 'Log food for today', hint: 'N', action: () => openLogModal(paletteTargetDate()) },
-  { label: 'Build a meal', hint: 'B', action: () => { openLogModal(paletteTargetDate()); openMealBuilder(); } },
+  { label: 'Build a meal', action: () => { openLogModal(paletteTargetDate()); openMealBuilder(); } },
   { label: 'Copy from another day', action: () => { openLogModal(paletteTargetDate()); if (window.openCopyStep) window.openCopyStep(); } },
   { label: 'Keyboard shortcuts', hint: '?', action: () => openShortcutsModal() }
 ];
