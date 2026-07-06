@@ -737,7 +737,7 @@ function renderMealItems() {
   const container = $('#meal-items');
   container.innerHTML = '';
   if (!mealItems.length) {
-    container.innerHTML = '<p class="muted">No products added yet.</p>';
+    container.innerHTML = '<p class="empty-placeholder">No products added yet.</p>';
   } else {
     mealItems.forEach((item, idx) => {
       const wrap = document.createElement('div');

@@ -231,8 +231,10 @@
       <div id="log-modal-copy-step" class="hidden">
         <button type="button" id="copy-day-cancel" class="btn-ghost small">← Cancel</button>
 
-        <label>Copy from date<input type="date" id="copy-source-date" lang="en-GB" /></label>
-        <label class="checkbox-label"><input type="checkbox" id="copy-select-all" /> Select all</label>
+        <div class="copy-toolbar">
+          <label>Copy from date<input type="date" id="copy-source-date" lang="en-GB" /></label>
+          <label class="checkbox-label"><input type="checkbox" id="copy-select-all" /> Select all</label>
+        </div>
         <div id="copy-source-items" class="result-list"></div>
 
         <button type="button" id="copy-submit" class="btn-primary btn-block" disabled>Copy selected items</button>
