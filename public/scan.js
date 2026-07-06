@@ -50,9 +50,10 @@ async function openScanModal() {
     return;
   }
 
+  const backCamera = cameras.find((cam) => /back|rear|environment/i.test(cam.label || ''));
+
   if (cameras.length > 1) {
     const select = $('#scan-camera-select');
-    const backCamera = cameras.find((cam) => /back|rear|environment/i.test(cam.label || ''));
     for (const cam of cameras) {
       const opt = document.createElement('option');
       opt.value = cam.id;
@@ -63,12 +64,13 @@ async function openScanModal() {
     select.classList.remove('hidden');
   }
 
-  // Always prefer the rear/environment-facing camera by default — getCameras()'s
-  // enumeration order isn't guaranteed to put the back camera first, so picking
-  // cameras[0] on multi-camera devices (i.e. most phones) can land on the front
-  // camera. facingMode is the reliable way to ask for "the back one" up front;
-  // the dropdown (when shown) is just a manual override from there.
-  await startScan({ facingMode: 'environment' });
+  // Start by deviceId rather than a bare {facingMode: 'environment'} constraint —
+  // on some Android/Chrome camera stacks (notably phones with multiple rear lenses)
+  // a facingMode-only constraint throws OverconstrainedError/fails outright, while
+  // starting a specific deviceId (same as picking one from the dropdown) works
+  // reliably. Guess the rear camera from its label; fall back to the first camera
+  // if nothing matches (single-camera devices, or generic/unlabeled cameras).
+  await startScan((backCamera || cameras[0]).id);
 }
 
 $('#scan-camera-select').addEventListener('change', async (e) => {
