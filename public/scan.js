@@ -70,6 +70,13 @@ async function openScanModal() {
     select.classList.remove('hidden');
   }
 
+  // getCameras() briefly opens its own probe stream (to read device labels) and
+  // stops it right before returning. On some Chrome/Android camera stacks the
+  // hardware hasn't finished releasing that stream yet, so starting a real one
+  // immediately afterward throws AbortError ("Starting videoinput failed") —
+  // a short breather here avoids hitting that race in the common case.
+  await delay(350);
+
   // Start by deviceId rather than a bare {facingMode: 'environment'} constraint —
   // on some Android/Chrome camera stacks (notably phones with multiple rear lenses)
   // a facingMode-only constraint throws OverconstrainedError/fails outright, while
@@ -79,6 +86,10 @@ async function openScanModal() {
   await startScan((backCamera || cameras[0]).id);
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 $('#scan-camera-select').addEventListener('change', async (e) => {
   await stopScan();
   await startScan(e.target.value);
@@ -86,7 +97,7 @@ $('#scan-camera-select').addEventListener('change', async (e) => {
 
 let scanStartedAt = 0;
 
-async function startScan(cameraIdOrConstraints) {
+async function startScan(cameraIdOrConstraints, isRetry) {
   try {
     html5Qrcode = new Html5Qrcode('scan-reader');
     scanStartedAt = Date.now();
@@ -98,6 +109,13 @@ async function startScan(cameraIdOrConstraints) {
     );
     setScanStatus('Point the camera at a barcode…');
   } catch (err) {
+    // AbortError here is almost always the same hardware-release race the delay
+    // above tries to avoid — worth one automatic retry before bothering the user.
+    if (!isRetry && err && err.name === 'AbortError') {
+      await delay(500);
+      await startScan(cameraIdOrConstraints, true);
+      return;
+    }
     handleScanError(err);
   }
 }
