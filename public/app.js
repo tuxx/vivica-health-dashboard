@@ -70,7 +70,10 @@ function setupTimeInput(el) {
 $$('.time-input').forEach(setupTimeInput);
 document.addEventListener('vivica:settings-changed', () => {
   $$('.time-input').forEach(refreshTimeInputMode);
+  refreshShortcutHints();
 });
+refreshShortcutHints();
+$$('.modal').forEach(setupModalFieldNav);
 
 // ---------- auth / bootstrap ----------
 
@@ -158,23 +161,21 @@ function showTab(name) {
 
 // ---------- keyboard shortcuts ----------
 // Single-key shortcuts, active whenever focus isn't in a text field/select, so
-// they never fight with typing. "N" is the fast path for the everyday action:
-// opens the quick-log modal for the selected calendar day (or today).
+// they never fight with typing. Bindings are configurable (shortcuts.js registry +
+// Settings tab); "logFood" defaults to N, the fast path for the everyday action.
+
+// Target date for shortcuts that open the log-food modal: whatever day is selected
+// in the calendar, or today if nothing's selected yet / the calendar hasn't loaded.
+function shortcutTargetDate() {
+  return typeof calendarSelectedDate !== 'undefined' && calendarSelectedDate ? calendarSelectedDate : todayStr();
+}
+
 document.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault();
-    if ($('#palette-modal').classList.contains('hidden')) openCommandPalette();
-    else closeCommandPalette();
-    return;
-  }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
 
   if (e.key === 'Escape') {
     if (!$('#calendar-popover').classList.contains('hidden')) {
       window.closeCalendarPopover();
-      e.preventDefault();
-    } else if (!$('#palette-modal').classList.contains('hidden')) {
-      closeCommandPalette();
       e.preventDefault();
     } else if (!$('#shortcuts-modal').classList.contains('hidden')) {
       closeShortcutsModal();
@@ -199,41 +200,49 @@ document.addEventListener('keydown', (e) => {
     (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
   if (isTyping || $('#shell').classList.contains('hidden')) return;
 
-  switch (e.key.toLowerCase()) {
-    case 'n':
-    case 'l':
-      openLogModal(typeof calendarSelectedDate !== 'undefined' && calendarSelectedDate ? calendarSelectedDate : todayStr());
-      e.preventDefault();
-      break;
-    case 'c':
-      showTab('calendar');
-      e.preventDefault();
-      break;
-    case 's':
-      showTab('settings');
-      e.preventDefault();
-      break;
-    case 'p':
-      showTab('profile');
-      e.preventDefault();
-      break;
-    case '/': {
-      let visibleSearch = null;
-      if (!$('#log-modal').classList.contains('hidden')) {
-        if (!$('#log-modal-search-step').classList.contains('hidden')) visibleSearch = $('#search-input');
-        else if (!$('#log-modal-meal-step').classList.contains('hidden')) visibleSearch = $('#meal-search-input');
-      }
-      if (visibleSearch) { visibleSearch.focus(); e.preventDefault(); }
-      break;
+  if (matchesShortcut(e, 'logFood')) {
+    openLogModal(shortcutTargetDate());
+    e.preventDefault();
+  } else if (matchesShortcut(e, 'newMeal')) {
+    openLogModal(shortcutTargetDate());
+    openMealBuilder();
+    e.preventDefault();
+  } else if (matchesShortcut(e, 'copyFromDay')) {
+    openLogModal(shortcutTargetDate());
+    if (window.openCopyStep) window.openCopyStep();
+    e.preventDefault();
+  } else if (matchesShortcut(e, 'scanBarcode')) {
+    openLogModal(shortcutTargetDate());
+    $('#scan-barcode-btn').click();
+    e.preventDefault();
+  } else if (matchesShortcut(e, 'today')) {
+    showTab('calendar');
+    $('#day-today').click();
+    e.preventDefault();
+  } else if (matchesShortcut(e, 'tabFoodLog')) {
+    showTab('calendar');
+    e.preventDefault();
+  } else if (matchesShortcut(e, 'tabSettings')) {
+    showTab('settings');
+    e.preventDefault();
+  } else if (matchesShortcut(e, 'tabProfile')) {
+    showTab('profile');
+    e.preventDefault();
+  } else if (matchesShortcut(e, 'focusSearch')) {
+    let visibleSearch = null;
+    if (!$('#log-modal').classList.contains('hidden')) {
+      if (!$('#log-modal-search-step').classList.contains('hidden')) visibleSearch = $('#search-input');
+      else if (!$('#log-modal-meal-step').classList.contains('hidden')) visibleSearch = $('#meal-search-input');
     }
-    case '?':
-      openShortcutsModal();
-      e.preventDefault();
-      break;
+    if (visibleSearch) { visibleSearch.focus(); e.preventDefault(); }
+  } else if (matchesShortcut(e, 'showShortcuts')) {
+    openShortcutsModal();
+    e.preventDefault();
   }
 });
 
 function openShortcutsModal() {
+  renderShortcutsHelpList($('#shortcuts-help-list'));
   $('#shortcuts-modal').classList.remove('hidden');
 }
 function closeShortcutsModal() {
@@ -252,93 +261,38 @@ $('#sidebar-collapse-toggle').addEventListener('click', () => {
   saveSettings({ sidebarCollapsed: isCollapsed });
 });
 
-// ---------- Command palette ----------
-// Ctrl/Cmd+K from anywhere. Static navigation commands filtered by substring match,
-// plus a live product/meal search once the query is long enough — picking a product
-// result opens the log modal straight to that item's log-it form.
+// ---------- Sidebar keyboard navigation ----------
+// Up/Down move between the 3 nav items (Food Log/Profile/Settings), Right hands off to
+// the day panel's parts (only meaningful from the Food Log tab, since that's the only
+// one with a day panel). Entry point is native Tab, same as any other button group.
 
-function paletteTargetDate() {
-  return typeof calendarSelectedDate !== 'undefined' && calendarSelectedDate ? calendarSelectedDate : todayStr();
-}
-const PALETTE_COMMANDS = [
-  { label: 'Food Log', hint: 'C', action: () => showTab('calendar') },
-  { label: 'Profile', hint: 'P', action: () => showTab('profile') },
-  { label: 'Settings', hint: 'S', action: () => showTab('settings') },
-  { label: 'Log food for today', hint: 'N', action: () => openLogModal(paletteTargetDate()) },
-  { label: 'Build a meal', action: () => { openLogModal(paletteTargetDate()); openMealBuilder(); } },
-  { label: 'Copy from another day', action: () => { openLogModal(paletteTargetDate()); if (window.openCopyStep) window.openCopyStep(); } },
-  { label: 'Keyboard shortcuts', hint: '?', action: () => openShortcutsModal() }
-];
+$('.sidebar').addEventListener('keydown', (e) => {
+  const item = e.target.closest('[data-tab]');
+  if (!item) return;
+  const items = $$('[data-tab]');
+  const idx = items.indexOf(item);
 
-function openCommandPalette() {
-  $('#palette-modal').classList.remove('hidden');
-  $('#palette-input').value = '';
-  renderPaletteResults('');
-  $('#palette-input').focus();
-}
-function closeCommandPalette() {
-  $('#palette-modal').classList.add('hidden');
-}
-$('#palette-modal').addEventListener('click', (e) => {
-  if (e.target === e.currentTarget) closeCommandPalette();
-});
-$('#palette-input').addEventListener('input', (e) => renderPaletteResults(e.target.value));
-setupListKeyboardNav($('#palette-input'), () => $('#palette-results'));
-
-function renderPaletteResults(query) {
-  const q = query.trim().toLowerCase();
-  const container = $('#palette-results');
-  container.innerHTML = '';
-
-  const matchingCommands = PALETTE_COMMANDS.filter((c) => !q || c.label.toLowerCase().includes(q));
-  for (const cmd of matchingCommands) {
-    const row = document.createElement('div');
-    row.className = 'result-item command-item';
-    row.innerHTML = `<div class="product-card">
-      <div class="product-card-body"><span class="name">${escapeHtml(cmd.label)}</span></div>
-      ${cmd.hint ? `<kbd>${escapeHtml(cmd.hint)}</kbd>` : ''}
-    </div>`;
-    row.addEventListener('click', () => { closeCommandPalette(); cmd.action(); });
-    container.appendChild(row);
-  }
-
-  if (q.length >= 2) {
-    runPaletteProductSearch(q);
-  } else if (!matchingCommands.length) {
-    container.innerHTML = '<p class="muted">No matches.</p>';
-  }
-}
-
-const runPaletteProductSearch = debounce(async (q) => {
-  try {
-    const res = await api('/nutrition/search', {
-      method: 'POST',
-      body: { search: q, brand: '', supermarket: null, page: 1, type: '', meal_tab: 'all' }
-    });
-    if ($('#palette-input').value.trim().toLowerCase() !== q) return; // query changed while this was in flight
-    const items = Array.isArray(res.data) ? res.data : Object.values(res.data || {});
-    if (!items.length) return;
-
-    const container = $('#palette-results');
-    const heading = document.createElement('p');
-    heading.className = 'muted palette-section-label';
-    heading.textContent = 'Products & meals';
-    container.appendChild(heading);
-    for (const item of items) {
-      const wrap = document.createElement('div');
-      wrap.className = 'result-item';
-      wrap.innerHTML = renderProductCard(item);
-      wrap.addEventListener('click', () => {
-        closeCommandPalette();
-        openLogModal(paletteTargetDate());
-        selectLogItem(item);
-      });
-      container.appendChild(wrap);
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    items[Math.min(idx + 1, items.length - 1)]?.focus();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    items[Math.max(idx - 1, 0)]?.focus();
+  } else if (e.key === 'ArrowRight') {
+    if (item.dataset.tab === 'calendar' && window.focusFirstDayPart) {
+      e.preventDefault();
+      window.focusFirstDayPart();
     }
-  } catch {
-    // silent — a failed live search shouldn't block the static commands above it
   }
-}, 300);
+});
+
+// Entry point for the day panel's ArrowLeft handoff (see calendar.js) — focuses whichever
+// tab is currently active.
+window.focusSidebar = function focusSidebar() {
+  const items = $$('[data-tab]');
+  const active = items.find((b) => b.classList.contains('active'));
+  (active || items[0])?.focus();
+};
 
 // Enter-to-confirm in the quantity modal (it's not a <form>, so Enter does nothing by default).
 $('#qty-modal-amount').addEventListener('keydown', (e) => {

@@ -79,8 +79,46 @@ window.initCalendar = function initCalendar() {
     if (calendarSelectedDate && window.startLogForDayPart) window.startLogForDayPart(calendarSelectedDate);
   });
 
+  // Day-part keyboard navigation: Up/Down move between the day's parts (breakfast/lunch/...),
+  // Left hands off to the sidebar, Enter opens the log-food modal for the focused part.
+  $('#day-panel-items').addEventListener('keydown', (e) => {
+    const group = e.target.closest('.day-part-group');
+    if (!group) return;
+    const groups = dayPartGroups();
+    const idx = groups.indexOf(group);
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      focusDayPartGroup(idx + 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      focusDayPartGroup(idx - 1);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      if (window.focusSidebar) window.focusSidebar();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (window.startLogForDayPart) window.startLogForDayPart(group.dataset.date, group.dataset.dayPart);
+    }
+  });
+
   renderWeekdayHeader();
   selectDay(todayStr());
+};
+
+function dayPartGroups() {
+  return $$('#day-panel-items .day-part-group');
+}
+function focusDayPartGroup(idx) {
+  const groups = dayPartGroups();
+  if (!groups.length) return;
+  const clamped = Math.max(0, Math.min(idx, groups.length - 1));
+  groups[clamped].focus();
+  groups[clamped].scrollIntoView({ block: 'nearest' });
+}
+// Entry point for the sidebar's ArrowRight handoff (see app.js).
+window.focusFirstDayPart = function focusFirstDayPart() {
+  focusDayPartGroup(0);
 };
 
 // Popover calendar: only fetched/rendered on demand (opening it), not on page load —
@@ -279,7 +317,8 @@ function renderDayPanel(ds, data) {
       ? dayItems.map((item) => renderDayItemRow(item, ds)).join('')
       : '<p class="muted day-part-empty">Nothing logged.</p>';
     const label = escapeHtml(ucFirst(dp.replace(/_/g, ' ')));
-    return `<div class="day-part-group">
+    return `<div class="day-part-group" tabindex="0" role="group" aria-label="${label}"
+      data-date="${escapeHtml(ds)}" data-day-part="${escapeHtml(dp)}">
       <div class="day-part-header">
         <h3>${label}</h3>
         <button type="button" class="btn-ghost btn-icon add-day-part" title="Log food for ${label}"

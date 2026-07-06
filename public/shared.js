@@ -9,7 +9,9 @@ const DEFAULT_SETTINGS = {
   firstDayOfWeek: 'mon',  // 'mon' | 'sun'
   dateFormat: 'long',     // 'long' | 'dmy' | 'mdy' | 'ymd'
   totalsCollapsed: true,  // whether the day panel's nutrient-tiles grid starts collapsed
-  sidebarCollapsed: false // whether the desktop sidebar starts as an icon-only rail
+  sidebarCollapsed: false, // whether the desktop sidebar starts as an icon-only rail
+  keybindings: {},        // actionId -> single-key override; see shortcuts.js for the registry/defaults
+  showShortcutHints: false // whether buttons show their bound key as a <kbd> badge
 };
 
 function loadSettings() {
@@ -242,4 +244,32 @@ function setupListKeyboardNav(input, getContainer, itemSelector = '.result-item'
 function applyHighlight(items, idx) {
   items.forEach((el, i) => el.classList.toggle('highlighted', i === idx));
   items[idx].scrollIntoView({ block: 'nearest' });
+}
+
+// Lets ArrowUp/ArrowDown move focus between fields inside a modal, so a form is fully
+// operable without Tab. Excluded: <select>/<textarea> and input types where the arrow
+// keys already have native meaning the user expects to keep (number/range spinners, date
+// sub-field cycling, radio-group selection) — and any field marked data-list-nav="true",
+// which already drives its own result-list navigation via setupListKeyboardNav.
+const FIELD_NAV_EXCLUDED_TYPES = new Set(['number', 'date', 'range', 'radio']);
+function setupModalFieldNav(modalEl) {
+  if (!modalEl) return;
+  modalEl.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const target = e.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.dataset.listNav === 'true') return;
+    if (FIELD_NAV_EXCLUDED_TYPES.has(target.type)) return;
+
+    const focusables = Array.from(modalEl.querySelectorAll('input, select, textarea, button'))
+      .filter((el) => !el.disabled && el.offsetParent !== null);
+    const idx = focusables.indexOf(target);
+    if (idx === -1) return;
+    const next = e.key === 'ArrowDown' ? focusables[idx + 1] : focusables[idx - 1];
+    if (next) {
+      e.preventDefault();
+      next.focus();
+      if (next instanceof HTMLInputElement && next.select) next.select();
+    }
+  });
 }
