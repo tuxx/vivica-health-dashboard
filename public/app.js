@@ -391,7 +391,7 @@ function backToSearchStep() {
   $('#log-error').classList.add('hidden');
   $('#log-success').classList.add('hidden');
   $('#search-input').value = '';
-  $('#search-results').innerHTML = '';
+  loadQuickList('/products/recent'); // default the results box to recent items instead of leaving it empty
   $('#search-input').focus();
 }
 

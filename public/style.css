@@ -562,10 +562,12 @@ button { cursor: pointer; }
 
 .day-item {
   display: flex; align-items: center; gap: 0.65rem;
-  padding: 0.45rem 0.1rem;
+  padding: 0.45rem 0.6rem;
   border-bottom: 1px solid var(--border);
 }
 .day-item:last-child { border-bottom: none; }
+.day-item:nth-child(even) { background: var(--bg); }
+.day-part-group:hover .day-item { background: var(--accent-faded); }
 .day-item .name { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .day-item .meta { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
 .day-item .edit-item {
@@ -616,7 +618,7 @@ button { cursor: pointer; }
 }
 
 @media (max-width: 480px) {
-  .row:not(.segmented):not(.modal-actions) { flex-direction: column; gap: 0; }
+  .row:not(.segmented):not(.modal-actions):not(.search-with-scan) { flex-direction: column; gap: 0; }
 
   .day-panel-header { flex-wrap: wrap; }
   .day-title-btn { flex: 1 1 100%; order: -1; font-size: 1.15rem; }
