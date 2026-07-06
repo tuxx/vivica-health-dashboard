@@ -120,20 +120,25 @@ const MAX_START_ATTEMPTS = 4;
 
 async function startScan(cameraIdOrConstraints, attempt = 1) {
   try {
-    html5Qrcode = new Html5Qrcode('scan-reader');
+    // Explicitly request the browser's native BarcodeDetector when available (Chrome/
+    // Android — it's the same OS-level ML-based scanner real barcode/camera apps use,
+    // and is far faster and more forgiving of angle/distance than the JS fallback
+    // decoder this library uses when it's unavailable, e.g. on iOS Safari).
+    html5Qrcode = new Html5Qrcode('scan-reader', {
+      useBarCodeDetectorIfSupported: true,
+      formatsToSupport: SCAN_FORMATS,
+      verbose: false
+    });
     scanStartedAt = Date.now();
     await html5Qrcode.start(
       cameraIdOrConstraints,
       {
         fps: 15,
-        // A viewfinder-relative box (rather than a small fixed pixel size) so the scan
-        // region uses most of the frame — the old fixed 250x150 box only covered a small
-        // slice of a high-res camera feed, forcing users to get uncomfortably close (and
-        // out of focus range) just to make a barcode fill it.
-        qrbox: (viewfinderWidth, viewfinderHeight) => {
-          const boxWidth = Math.round(Math.min(viewfinderWidth, viewfinderHeight) * 0.9);
-          return { width: boxWidth, height: Math.round(boxWidth * 0.5) };
-        },
+        // No qrbox — scan the full frame instead of a small cropped region. The library
+        // requires the whole barcode to fall within the qrbox to detect it, so a small
+        // box meant the paper had to be positioned precisely (and close, since the box
+        // stays a fixed size regardless of distance). Scanning the entire frame matches
+        // how native scanner apps behave: the barcode can be anywhere in view.
         formatsToSupport: SCAN_FORMATS,
         // Passing videoConstraints makes the library use ONLY these constraints for
         // getUserMedia (it ignores the deviceId passed as the first argument above in
