@@ -17,30 +17,22 @@ It's a small Node.js server that talks to the same API the mobile app uses (`api
 
 ## Features
 
-- **Day-focused food log** — the calendar isn't always-on-screen anymore; today's (or
-  whatever day you're looking at) food log is the main view, full width. The date is
-  a button — click it to open a small popover calendar (positioned right under where
-  you clicked, not centered) to jump to another day; `‹`/`›` step one day at a time.
-- **Nutrient totals, collapsible** — Energy/Protein/Fat/Carbs/Fiber progress bars are
-  hidden by default so the log itself is the first thing you see, with a one-line
-  Energy summary bar always visible to toggle them open. Your choice is remembered.
+- **Day view** — a single day's food log, full width. Click the date to pick another
+  day from a small calendar popover, or use `‹`/`›` to step a day at a time.
+- **Collapsible nutrient totals** — Energy/Protein/Fat/Carbs/Fiber progress bars,
+  tucked behind a one-line Energy summary.
 - **Log food** — search the product database, or pick from Recent/Frequent, with
-  keyboard arrow-key navigation through results. Log-food day-part defaults to
-  whatever makes sense for the current time of day.
-- **Edit or delete logged entries** — a pencil icon next to any logged item reopens
-  it pre-filled with its actual amount/serving/time so you can correct it, not just
-  delete-and-redo.
-- **Build a meal** — combine products into a reusable meal (syncs back to the app),
-  right from the log-food modal, then log it immediately.
-- **Copy entries from another day** — pick a source date, check off which items to
-  bring over (e.g. repeat yesterday's breakfast), copy them into the current day.
+  keyboard navigation through results. Defaults the meal/day-part to whatever fits
+  the current time of day.
+- **Edit or delete logged entries** — correct an entry's amount, serving, or time
+  without deleting and re-logging it.
+- **Build a meal** — combine products into a reusable meal that syncs back to the app.
+- **Copy entries from another day** — pick a day, choose which items to bring over.
 - **Command palette** (`Ctrl`/`Cmd`+`K`) — jump to any page or straight into a
-  product/meal search from anywhere.
-- **Profile** — read-only view of your account info, care team/practice, and medical
-  form, pulled from the same API the app uses.
-- **Settings** — theme (light/dark/system), 12h/24h time, first day of week, date
-  display format. All stored locally in your browser.
-- Mobile-friendly responsive layout.
+  product/meal search.
+- **Profile** — read-only account info, care team/practice, and medical form.
+- **Settings** — theme, time format, first day of week, date display format.
+- Mobile-friendly.
 
 There's no build step and no external dependencies — just Node's built-in `http` server, `fetch`, and `node:sqlite` for local caching.
 
@@ -93,12 +85,9 @@ PORT=8080 npm start
 
 ### Single session only
 
-The server holds **one** Vivica session at a time (one access token in
-`data/session.json`) — there's no per-browser login, no user accounts, and no
-concept of multiple people using the same running server as themselves. If you
-log in as a different account, it replaces the previous session. Run one instance
-per Vivica account (see [todo.md](./todo.md) for plans to support multiple
-concurrent sessions).
+The server holds one Vivica session at a time. Logging in as a different account
+replaces it — run one instance per Vivica account (see [todo.md](./todo.md) for
+plans to support multiple concurrent sessions).
 
 ### Vivica API
 
