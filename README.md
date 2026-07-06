@@ -30,6 +30,9 @@ It's a small Node.js server that talks to the same API the mobile app uses (`api
 - **Copy entries from another day** — pick a day, choose which items to bring over.
 - **Command palette** (`Ctrl`/`Cmd`+`K`) — jump to any page or straight into a
   product/meal search.
+- **Scan a barcode** — use your webcam (desktop) or phone camera (mobile) to scan a
+  product's barcode instead of typing/searching. Requires HTTPS — see
+  [Barcode scanning](#barcode-scanning) below.
 - **Profile** — read-only account info, care team/practice, and medical form.
 - **Settings** — theme, time format, first day of week, date display format.
 - Mobile-friendly.
@@ -112,6 +115,12 @@ plans to support multiple concurrent sessions).
 ### Vivica API
 
 See [API_REFERENCE.md](./API_REFERENCE.md)
+
+## Barcode scanning
+
+Camera access (`getUserMedia`) only works in a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) — browsers block it entirely on plain `http://`. This is transparent on `http://localhost`, which browsers exempt, but scanning **will not work** if you access the dashboard over `http://` from another device (e.g. your phone, via its LAN IP).
+
+To use barcode scanning from your phone, put the dashboard behind HTTPS — a reverse proxy (Caddy, nginx, Traefik, etc.) terminating TLS in front of it, a self-signed cert you trust on the phone (e.g. via `mkcert`), or a tunnel (Tailscale Funnel, Cloudflare Tunnel, ngrok). If the camera prompt never appears or scanning silently fails on mobile, this is almost always why.
 
 ## Self-hosting
 
