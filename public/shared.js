@@ -11,7 +11,8 @@ const DEFAULT_SETTINGS = {
   totalsCollapsed: true,  // whether the day panel's nutrient-tiles grid starts collapsed
   sidebarCollapsed: false, // whether the desktop sidebar starts as an icon-only rail
   keybindings: {},        // actionId -> single-key override; see shortcuts.js for the registry/defaults
-  showShortcutHints: false // whether buttons show their bound key as a <kbd> badge
+  showShortcutHints: false, // whether buttons show their bound key as a <kbd> badge
+  hiddenDayParts: []      // day_part strings to omit from the day panel's main view
 };
 
 function loadSettings() {

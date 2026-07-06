@@ -372,7 +372,9 @@ function renderDayPanel(ds, data) {
   summaryFill.classList.toggle('over-goal', !!energyGoal && energyValue > energyGoal);
 
   const items = data.items || {};
-  const orderedDayParts = (window.dayParts && window.dayParts.length ? window.dayParts : Object.keys(items));
+  const allDayParts = (window.dayParts && window.dayParts.length ? window.dayParts : Object.keys(items));
+  const hidden = new Set(currentSettings.hiddenDayParts || []);
+  const orderedDayParts = allDayParts.filter((dp) => !hidden.has(dp));
 
   dayItemsByPivot = {};
 

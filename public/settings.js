@@ -121,5 +121,32 @@ $('#settings-view').addEventListener('keydown', (e) => {
   }
 });
 
+// ---------- Day panel: hide day parts ----------
+// Checkbox per day_part (from the user's actual dayParts, loaded async at boot — see
+// app.js enterApp) letting them omit sections they don't use from the day panel view.
+
+window.renderDayPartsSettingsList = function renderDayPartsSettingsList() {
+  const container = $('#day-parts-hide-list');
+  const hidden = new Set(currentSettings.hiddenDayParts || []);
+
+  container.innerHTML = (window.dayParts || []).map((dp) => `
+    <label class="checkbox-label">
+      <input type="checkbox" class="day-part-hide-checkbox" data-day-part="${escapeHtml(dp)}" ${hidden.has(dp) ? 'checked' : ''} />
+      ${escapeHtml(ucFirst(dp.replace(/_/g, ' ')))}
+    </label>
+  `).join('');
+
+  container.querySelectorAll('.day-part-hide-checkbox').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const dp = cb.dataset.dayPart;
+      const next = new Set(currentSettings.hiddenDayParts || []);
+      if (cb.checked) next.add(dp); else next.delete(dp);
+      saveSettings({ hiddenDayParts: Array.from(next) });
+      showSettingsSaved();
+    });
+  });
+};
+
 populateSettingsForm();
 renderShortcutsSettingsList();
+window.renderDayPartsSettingsList();

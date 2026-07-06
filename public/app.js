@@ -91,6 +91,7 @@ async function enterApp() {
   dayParts = me.day_parts;
   window.dayParts = dayParts;
   fillDayPartSelect($('#log-day-part'));
+  if (window.renderDayPartsSettingsList) window.renderDayPartsSettingsList();
 
   window.currentUser = me.user || null;
 
