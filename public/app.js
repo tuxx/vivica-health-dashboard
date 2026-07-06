@@ -6,6 +6,7 @@ let selectedLogItem = null;   // merged search-result + item_data, for the log-f
 let mealItems = [];           // items being assembled into a new meal
 let pendingMealProduct = null; // product awaiting a quantity before being added to mealItems
 let logContext = null;        // { date, day_part, dayPartExplicit } for the currently open log-food modal
+let editingItem = null;       // { pivotId, upstreamType, date } for the entry being replaced, or null when just logging
 
 // ---------- time inputs: HH:MM text entry, 24h or 12h+AM/PM per the time-format setting ----------
 // Each input tracks its ground-truth value in 24h form via `dataset.value24`, so switching the
@@ -255,6 +256,7 @@ window.startLogForDayPart = function startLogForDayPart(date, dayPart) {
 
 function openLogModal(date, dayPart) {
   logContext = { date, day_part: dayPart || guessDayPartForTime(dayParts), dayPartExplicit: !!dayPart };
+  editingItem = null;
   selectedLogItem = null;
   backToSearchStep();
   $('#log-modal-title').textContent = `Log food — ${formatDateDisplay(date)}`;
@@ -265,11 +267,14 @@ function openLogModal(date, dayPart) {
 function closeLogModal() {
   $('#log-modal').classList.add('hidden');
   logContext = null;
+  editingItem = null;
   selectedLogItem = null;
   mealItems = [];
 }
 
 function backToSearchStep() {
+  editingItem = null;
+  $('#log-back-to-search').classList.remove('hidden');
   $('#log-modal-form-step').classList.add('hidden');
   $('#log-modal-meal-step').classList.add('hidden');
   $('#log-modal-search-step').classList.remove('hidden');
@@ -279,6 +284,49 @@ function backToSearchStep() {
   $('#search-results').innerHTML = '';
   $('#search-input').focus();
 }
+
+// Opened from the calendar day panel's pencil icon on a logged item: jumps straight to the
+// form step (no search) pre-filled with that entry's actual persisted values. Submitting
+// logs a new entry then deletes the old one — there's no documented in-place "update
+// logged item" endpoint, so this is create-then-delete under the hood.
+window.startEditLogItem = async function startEditLogItem(item, ds) {
+  const isMeal = item.type_record === 'meal';
+  const pivotId = isMeal ? item.meal_pivot_id : item.product_pivot_id;
+  const upstreamType = typeForRecord(item.type_record);
+  const id = isMeal ? item.meal_id : item.id;
+  const date = item.intended_date || ds;
+
+  logContext = { date, day_part: item.day_part, dayPartExplicit: true };
+  editingItem = { pivotId, upstreamType, date };
+
+  selectedLogItem = {
+    id,
+    type_record: item.type_record,
+    description: isMeal ? (item.meal_name || item.description) : item.description,
+    measuring_unit: item.measuring_unit,
+    date,
+    time: item.intended_time || nowTimeStr(),
+    day_part: item.day_part,
+    amount_value: item.nutrient_conversion_id ? '' : (item.used_product_amount ?? ''),
+    amount_pieces: item.amount_pieces ?? item.used_amount ?? '',
+    selected_conversion_id: item.nutrient_conversion_id || '',
+    specify_method: item.nutrient_conversion_id ? 'conversion' : 'manual',
+    meal_amount: item.meal_amount || 1
+  };
+
+  $('#log-modal-title').textContent = `Edit — ${formatDateDisplay(date)}`;
+  $('#log-modal').classList.remove('hidden');
+
+  try {
+    const itemData = await api('/nutrition/item_data', { method: 'POST', body: { type: upstreamType, id } });
+    selectedLogItem = Object.assign({}, itemData, selectedLogItem);
+  } catch (err) {
+    $('#log-error').textContent = 'Could not load item details: ' + err.message;
+    $('#log-error').classList.remove('hidden');
+  }
+
+  renderLogForm();
+};
 
 $('#log-modal-close').addEventListener('click', closeLogModal);
 $('#log-modal').addEventListener('click', (e) => {
@@ -378,10 +426,12 @@ function renderLogForm() {
   $('#log-modal-search-step').classList.add('hidden');
   $('#log-modal-meal-step').classList.add('hidden');
   $('#log-modal-form-step').classList.remove('hidden');
+  $('#log-back-to-search').classList.toggle('hidden', !!editingItem);
   $('#log-error').classList.add('hidden');
   $('#log-success').classList.add('hidden');
 
   $('#log-item-name').textContent = selectedLogItem.description;
+  $('#log-submit').textContent = editingItem ? 'Save changes' : 'Log it';
   $('#log-date').value = selectedLogItem.date;
   setTimeInputValue($('#log-time'), selectedLogItem.time);
   $('#log-day-part').value = selectedLogItem.day_part || dayParts[0];
@@ -389,6 +439,7 @@ function renderLogForm() {
   const isMeal = selectedLogItem.type_record === 'meal';
   $('#log-meal-amount-wrap').classList.toggle('hidden', !isMeal);
   $('#log-amount-wrap').classList.toggle('hidden', isMeal);
+  if (isMeal) $('#log-meal-amount').value = selectedLogItem.meal_amount || 1;
 
   const hasConversions = selectedLogItem.conversions && selectedLogItem.conversions.length > 0;
   $('#log-method-row').classList.toggle('hidden', !hasConversions);
@@ -448,17 +499,35 @@ $('#log-form').addEventListener('submit', async (e) => {
     amount_pieces: method === 'conversion' ? Number($('#log-amount-pieces').value) : ''
   };
 
+  const wasEditing = editingItem;
+
   try {
     $('#log-submit').disabled = true;
     await api('/nutrition/submit_item', { method: 'POST', body: payload });
-    successEl.textContent = `Logged ${selectedLogItem.description}.`;
+
+    // No documented in-place "update logged item" endpoint — editing logs the new
+    // values as a fresh entry, then removes the one being replaced.
+    let note = '';
+    if (wasEditing) {
+      try {
+        await api('/nutrition/delete_scheduled_item', {
+          method: 'POST',
+          body: { id: wasEditing.pivotId, type: wasEditing.upstreamType, date: wasEditing.date }
+        });
+        if (wasEditing.date !== payload.date && window.invalidateCalendarDay) window.invalidateCalendarDay(wasEditing.date);
+      } catch {
+        note = ' (Could not remove the previous entry — you may need to delete it manually.)';
+      }
+      editingItem = null;
+    }
+
+    successEl.textContent = `Logged ${selectedLogItem.description}.${note}`;
     successEl.classList.remove('hidden');
     if (window.invalidateCalendarDay) window.invalidateCalendarDay(payload.date);
     selectedLogItem = null;
-    // Brief confirmation, then back to search so another item can be logged for the
-    // same day/day-part without re-opening the modal.
+    // Brief confirmation, then close — don't linger open after a successful log.
     setTimeout(() => {
-      if (!$('#log-modal').classList.contains('hidden')) backToSearchStep();
+      if (!$('#log-modal').classList.contains('hidden')) closeLogModal();
     }, 900);
   } catch (err) {
     errorEl.textContent = err.data?.errors ? Object.values(err.data.errors).flat().join(' ') : err.message;

@@ -3,6 +3,7 @@ let calendarRefDate = new Date();
 calendarRefDate.setDate(1);
 let calendarSelectedDate = null;
 let calendarInitialized = false;
+let dayItemsByPivot = {}; // pivotId -> raw stats item, refreshed on every renderDayPanel; used by the edit button
 
 const NUTRIENT_TILES = [
   { key: 'enercc_kcal', label: 'Energy', unit: 'kcal' },
@@ -220,6 +221,8 @@ function renderDayPanel(ds, data) {
   const items = data.items || {};
   const orderedDayParts = (window.dayParts && window.dayParts.length ? window.dayParts : Object.keys(items));
 
+  dayItemsByPivot = {};
+
   const groups = orderedDayParts.map((dp) => {
     const dayItems = items[dp] || [];
     const rows = dayItems.length
@@ -241,6 +244,12 @@ function renderDayPanel(ds, data) {
   itemsEl.querySelectorAll('[data-delete-pivot]').forEach((btn) => {
     btn.addEventListener('click', () => deleteLoggedItem(btn.dataset, ds));
   });
+  itemsEl.querySelectorAll('[data-edit-pivot]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const item = dayItemsByPivot[btn.dataset.editPivot];
+      if (item && window.startEditLogItem) window.startEditLogItem(item, ds);
+    });
+  });
   itemsEl.querySelectorAll('.add-day-part').forEach((btn) => {
     btn.addEventListener('click', () => {
       if (window.startLogForDayPart) window.startLogForDayPart(btn.dataset.date, btn.dataset.dayPart);
@@ -255,10 +264,14 @@ function renderDayItemRow(item, ds) {
 
   const pivotId = item.type_record === 'meal' ? item.meal_pivot_id : item.product_pivot_id;
   const upstreamType = typeForRecord(item.type_record);
+  dayItemsByPivot[pivotId] = item;
 
   return `<div class="day-item">
     <span class="name">${escapeHtml(item.description || '')}</span>
     <span class="meta">${escapeHtml(meta)}</span>
+    <button class="edit-item" title="Edit"
+      data-edit-pivot="${escapeHtml(String(pivotId))}"
+    >✎</button>
     <button class="delete-item" title="Remove"
       data-delete-pivot="${escapeHtml(String(pivotId))}"
       data-delete-type="${escapeHtml(upstreamType)}"

@@ -428,6 +428,11 @@ button { cursor: pointer; }
 .day-item:last-child { border-bottom: none; }
 .day-item .name { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .day-item .meta { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+.day-item .edit-item {
+  color: var(--muted); background: none; border: none; cursor: pointer;
+  font-size: 1rem; padding: 0.2rem 0.4rem; border-radius: 6px; flex-shrink: 0;
+}
+.day-item .edit-item:hover { background: var(--accent-faded); color: var(--accent-dark); }
 .day-item .delete-item {
   color: var(--danger); background: none; border: none; cursor: pointer;
   font-size: 1rem; padding: 0.2rem 0.4rem; border-radius: 6px; flex-shrink: 0;
