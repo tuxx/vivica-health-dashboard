@@ -112,7 +112,13 @@ $('#scan-camera-select').addEventListener('change', (e) => {
 
 let scanStartedAt = 0;
 
-async function startScan(cameraIdOrConstraints, isRetry) {
+// How many times to retry an AbortError before giving up and telling the user. One
+// retry wasn't always enough in practice — some phones' camera hardware takes longer
+// than a single ~500ms breather to actually release a just-closed stream, so this
+// backs off further on each attempt (500ms, 1000ms, 1500ms) before surfacing an error.
+const MAX_START_ATTEMPTS = 4;
+
+async function startScan(cameraIdOrConstraints, attempt = 1) {
   try {
     html5Qrcode = new Html5Qrcode('scan-reader');
     scanStartedAt = Date.now();
@@ -131,9 +137,10 @@ async function startScan(cameraIdOrConstraints, isRetry) {
     // anything the library exposes. forceReleaseCameraTracks() finds it directly via
     // the DOM instead and stops it, regardless of what the library thinks happened.
     forceReleaseCameraTracks();
-    if (!isRetry && err && err.name === 'AbortError') {
-      await delay(500);
-      await startScan(cameraIdOrConstraints, true);
+    if (err && err.name === 'AbortError' && attempt < MAX_START_ATTEMPTS) {
+      setScanStatus('Still preparing the camera…');
+      await delay(500 * attempt);
+      await startScan(cameraIdOrConstraints, attempt + 1);
       return;
     }
     await handleScanError(err);
