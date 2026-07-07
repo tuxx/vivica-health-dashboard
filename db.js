@@ -5,9 +5,14 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, 'data');
-fs.mkdirSync(dataDir, { recursive: true });
+// The cache holds upstream medical/PII payloads — keep the directory and db file owner-only.
+// mkdirSync's mode only applies on create, so chmod explicitly to fix pre-existing setups.
+fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+fs.chmodSync(dataDir, 0o700);
 
-const db = new DatabaseSync(path.join(dataDir, 'vivica.db'));
+const dbPath = path.join(dataDir, 'vivica.db');
+const db = new DatabaseSync(dbPath);
+fs.chmodSync(dbPath, 0o600);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS response_cache (

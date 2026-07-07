@@ -73,6 +73,21 @@ The port can be changed with the `PORT` environment variable:
 PORT=8080 npm start
 ```
 
+By default the server binds `127.0.0.1` and is only reachable from the machine
+it runs on. Anyone who can reach the port acts as the logged-in user (there is
+no per-client auth), so widening is opt-in:
+
+```bash
+# Listen on all interfaces and allow requests addressed to a LAN IP/hostname.
+HOST=0.0.0.0 ALLOWED_HOSTS=192.168.1.10,dashboard.lan npm start
+```
+
+`ALLOWED_HOSTS` is a comma-separated list of extra hostnames/IPs the dashboard
+may be browsed to; `localhost`, `127.0.0.1` and `::1` are always allowed.
+Requests with any other `Host` (or a cross-site `Origin` on writes) are
+rejected — this is what protects the ambient session against CSRF and
+DNS rebinding, so put the name you actually type in the address bar here.
+
 ### Docker
 
 No image to build or pull — since there's no build step, `docker-compose.yml`
@@ -91,7 +106,11 @@ survives container restarts.
 
 To change the port, edit the `ports:` mapping in `docker-compose.yml` (the
 container always listens on `4173` internally — map it to whatever host port
-you want, e.g. `"8080:4173"`).
+you want, e.g. `"127.0.0.1:8080:4173"`).
+
+The mapping is loopback-only by default. To reach the dashboard from other
+devices, drop the `127.0.0.1:` prefix **and** set `ALLOWED_HOSTS` in the
+compose file to the hostname/IP you'll browse to (see above).
 
 ## How it works
 

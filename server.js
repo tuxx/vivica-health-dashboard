@@ -15,20 +15,70 @@ const APP_VERSION = '1.63.0'; // matches window.application_version in the app's
                                // gates all requests on this header and 403s with an "update required"
                                // payload if it's missing/stale
 const PORT = process.env.PORT || 4173;
+const HOST = process.env.HOST || '127.0.0.1'; // set HOST=0.0.0.0 to expose on the LAN — auth is
+                                              // ambient (any client that reaches the port acts as
+                                              // the logged-in user), so widening is opt-in
+const MAX_BODY_BYTES = 1 * 1024 * 1024;
+
+// Hostnames this server may be addressed as. Requests whose Host (or Origin, on writes) resolves
+// elsewhere are rejected — this is what breaks DNS-rebinding and cross-site request forgery, since
+// auth is ambient. Add your LAN hostname/IP via ALLOWED_HOSTS (comma-separated) when using HOST=0.0.0.0.
+const ALLOWED_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+if (HOST !== '0.0.0.0' && HOST !== '::') ALLOWED_HOSTNAMES.add(HOST);
+for (const h of (process.env.ALLOWED_HOSTS || '').split(',')) {
+  if (h.trim()) ALLOWED_HOSTNAMES.add(h.trim().toLowerCase());
+}
+
+function hostnameAllowed(hostname) {
+  return ALLOWED_HOSTNAMES.has(hostname.toLowerCase().replace(/^\[|\]$/g, ''));
+}
+
+function hostHeaderAllowed(hostHeader) {
+  if (!hostHeader) return false;
+  try { return hostnameAllowed(new URL(`http://${hostHeader}`).hostname); }
+  catch { return false; }
+}
+
+function originAllowed(origin) {
+  try {
+    const u = new URL(origin);
+    return (u.protocol === 'http:' || u.protocol === 'https:') && hostnameAllowed(u.hostname);
+  } catch { return false; }
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const STATS_TTL_MS = 30 * 60 * 1000; // day stats are cached, but short-lived: they can change from
                                       // the mobile app too, and we explicitly invalidate on our own writes
 
 // --- session (bearer token) persistence, single local user, kept server-side only ---
+
+// Persist only what the UI needs from the login user payload — the full /auth/me user object also
+// carries ssn, auth_token, biometrics and other PHI that must never sit in session.json (mirrors
+// the render allowlist in profile.js).
+const SESSION_USER_FIELDS = [
+  'id', 'first_name', 'last_name', 'nickname', 'initials',
+  'preferred_form_of_address', 'email', 'avatar_url', 'language', 'gender'
+];
+function toSessionUser(user) {
+  if (!user || typeof user !== 'object') return null;
+  const out = {};
+  for (const key of SESSION_USER_FIELDS) {
+    if (user[key] !== undefined) out[key] = user[key];
+  }
+  return out;
+}
+
 let session = { access_token: null, user: null };
 try {
-  session = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
+  const loaded = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
+  session = { access_token: loaded.access_token || null, user: toSessionUser(loaded.user) };
+  saveSession(); // rewrite: scrubs sensitive fields persisted by older versions, tightens file mode
 } catch { /* no session yet */ }
 
 function saveSession() {
-  fs.mkdirSync(path.dirname(SESSION_FILE), { recursive: true });
-  fs.writeFileSync(SESSION_FILE, JSON.stringify(session));
+  fs.mkdirSync(path.dirname(SESSION_FILE), { recursive: true, mode: 0o700 });
+  fs.writeFileSync(SESSION_FILE, JSON.stringify(session), { mode: 0o600 });
+  fs.chmodSync(SESSION_FILE, 0o600); // { mode } only applies on create; fix pre-existing files
 }
 
 // --- upstream fetch helper ---
@@ -72,14 +122,29 @@ function sendJson(res, status, obj) {
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     let chunks = [];
-    req.on('data', (c) => chunks.push(c));
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > MAX_BODY_BYTES) {
+        reject(httpError(413, 'payload_too_large'));
+        req.destroy();
+        return;
+      }
+      chunks.push(c);
+    });
     req.on('end', () => {
       if (!chunks.length) return resolve({});
       try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
-      catch (e) { reject(e); }
+      catch { reject(httpError(400, 'invalid_json')); }
     });
     req.on('error', reject);
   });
+}
+
+function httpError(status, message) {
+  const err = new Error(message);
+  err.status = status;
+  return err;
 }
 
 const MIME = {
@@ -124,9 +189,9 @@ async function handleLogin(req, res) {
 
   if (result.ok) {
     session.access_token = result.data.access_token;
-    session.user = result.data.user;
+    session.user = toSessionUser(result.data.user);
     saveSession();
-    sendJson(res, 200, { ok: true, user: result.data.user });
+    sendJson(res, 200, { ok: true, user: session.user });
     return;
   }
 
@@ -344,10 +409,32 @@ function handleStatus(req, res) {
 
 // --- router ---
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
-  const { pathname, searchParams } = url;
-
   try {
+    // DNS-rebinding guard: a rebound page carries the attacker's hostname in Host.
+    if (!hostHeaderAllowed(req.headers.host)) {
+      sendJson(res, 403, { error: 'forbidden_host' });
+      return;
+    }
+
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const { pathname, searchParams } = url;
+
+    if (pathname.startsWith('/api/') && req.method !== 'GET') {
+      // CSRF guard: browsers attach Origin to cross-site POSTs; ours come from our own pages.
+      const origin = req.headers.origin;
+      if (origin !== undefined && !originAllowed(origin)) {
+        sendJson(res, 403, { error: 'forbidden_origin' });
+        return;
+      }
+      // Cross-site "simple" requests can only send text/plain and friends without a CORS
+      // preflight; requiring JSON here forces the preflight, which the browser then blocks.
+      const hasBody = Number(req.headers['content-length']) > 0 || req.headers['transfer-encoding'];
+      if (hasBody && !/^application\/json\b/i.test(req.headers['content-type'] || '')) {
+        sendJson(res, 415, { error: 'unsupported_content_type' });
+        return;
+      }
+    }
+
     if (pathname === '/api/status' && req.method === 'GET') return handleStatus(req, res);
     if (pathname === '/api/login' && req.method === 'POST') return await handleLogin(req, res);
     if (pathname === '/api/logout' && req.method === 'POST') return await handleLogout(req, res);
@@ -372,10 +459,13 @@ const server = http.createServer(async (req, res) => {
     serveStatic(req, res, pathname);
   } catch (err) {
     console.error(err);
-    sendJson(res, 500, { error: 'internal_error', message: err.message });
+    const status = err.status || 500;
+    try {
+      sendJson(res, status, { error: status === 500 ? 'internal_error' : err.message, message: err.message });
+    } catch { /* socket may already be destroyed (e.g. oversized body) */ }
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Vivica dashboard running at http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`Vivica dashboard running at http://${HOST === '0.0.0.0' || HOST === '::' ? 'localhost' : HOST}:${PORT} (bound to ${HOST})`);
 });
