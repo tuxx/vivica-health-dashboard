@@ -253,3 +253,17 @@ $('#scan-use-manual').addEventListener('click', () => {
   closeScanModal();
   $('#search-input').focus();
 });
+
+// The scanner has no way to know when the OS suspends the camera out from
+// under it (screen lock, app switch) — visibilitychange is what reliably
+// fires in that case on both Android and iOS. Close the modal so the
+// existing stopScan()/forceReleaseCameraTracks() cleanup runs immediately
+// instead of leaving a now-dead stream held until the user notices and taps
+// close manually. Also means a background tab releases the camera as soon
+// as it's hidden, rather than only via the reactive "in use" error a second
+// tab would otherwise hit.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && !$('#scan-modal').classList.contains('hidden')) {
+    closeScanModal();
+  }
+});
