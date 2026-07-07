@@ -524,6 +524,7 @@ button { cursor: pointer; }
 
 .day-panel-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.9rem; }
 .day-nav-group { display: flex; align-items: center; gap: 0.5rem; }
+.day-date-group { display: flex; align-items: center; gap: 0.5rem; }
 .day-actions-group { display: flex; align-items: center; gap: 0.5rem; flex: 1; }
 .day-actions-group .spacer { flex: 1; }
 .day-title-btn {
@@ -710,7 +711,8 @@ button { cursor: pointer; }
   .row:not(.segmented):not(.modal-actions):not(.search-with-scan) { flex-direction: column; gap: 0; }
 
   .day-panel-header { flex-wrap: wrap; }
-  .day-nav-group { flex: 1 1 100%; justify-content: center; }
+  .day-nav-group { flex: 1 1 100%; justify-content: space-between; }
+  .day-date-group { flex: 1; justify-content: center; }
   .day-title-btn { font-size: 1.15rem; }
   .day-actions-group { flex: 1 1 100%; }
 

@@ -72,15 +72,17 @@
         <div class="day-panel-page">
           <div class="day-panel-header">
             <div class="day-nav-group">
-              <button id="day-prev" class="btn-ghost btn-icon" aria-label="Previous day">‹</button>
-              <button type="button" id="day-panel-date" class="day-title-btn">
-                <span id="day-panel-date-text"></span>
-                <svg class="chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
-              </button>
-              <button id="day-next" class="btn-ghost btn-icon" aria-label="Next day">›</button>
+              <div class="day-date-group">
+                <button id="day-prev" class="btn-ghost btn-icon" aria-label="Previous day">‹</button>
+                <button type="button" id="day-panel-date" class="day-title-btn">
+                  <span id="day-panel-date-text"></span>
+                  <svg class="chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                </button>
+                <button id="day-next" class="btn-ghost btn-icon" aria-label="Next day">›</button>
+              </div>
+              <button id="day-today" class="btn-ghost small">Today <kbd class="shortcut-hint-inline" data-shortcut-key="today"></kbd></button>
             </div>
             <div class="day-actions-group">
-              <button id="day-today" class="btn-ghost small">Today <kbd class="shortcut-hint-inline" data-shortcut-key="today"></kbd></button>
               <span class="spacer"></span>
               <button id="day-panel-log" class="btn-primary small">+ Log food <kbd class="shortcut-hint-inline" data-shortcut-key="logFood"></kbd></button>
               <button id="day-panel-refresh" class="btn-ghost btn-icon" title="Refresh from server">⟳</button>
