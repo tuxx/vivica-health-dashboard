@@ -5,6 +5,7 @@
 // scanning is purely a client-side input method.
 
 let html5Qrcode = null; // the active Html5Qrcode instance, or null when not scanning
+let scanTarget = 'search'; // 'search' (main log-food search) or 'meal' (meal-builder search) — set by whichever scan button opened the modal
 
 // Every open/close/camera-switch operation runs through this chain so they can never
 // overlap. Without it, closing the modal (which stops the camera without waiting) and
@@ -201,8 +202,13 @@ function onScanFrameFailure() {
 async function onScanSuccess(decodedText) {
   await runExclusive(stopScan);
   closeScanModal();
-  $('#search-input').value = decodedText;
-  runNutritionSearch(decodedText);
+  if (scanTarget === 'meal') {
+    $('#meal-search-input').value = decodedText;
+    runMealProductSearch(decodedText);
+  } else {
+    $('#search-input').value = decodedText;
+    runNutritionSearch(decodedText);
+  }
 }
 
 async function handleScanError(err) {
@@ -244,14 +250,15 @@ function closeScanModal() {
   restoreFocusAfterModal();
 }
 
-$('#scan-barcode-btn').addEventListener('click', () => runExclusive(openScanModal));
+$('#scan-barcode-btn').addEventListener('click', () => { scanTarget = 'search'; runExclusive(openScanModal); });
+$('#meal-scan-barcode-btn').addEventListener('click', () => { scanTarget = 'meal'; runExclusive(openScanModal); });
 $('#scan-modal-close').addEventListener('click', closeScanModal);
 $('#scan-modal').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) closeScanModal();
 });
 $('#scan-use-manual').addEventListener('click', () => {
   closeScanModal();
-  $('#search-input').focus();
+  $(scanTarget === 'meal' ? '#meal-search-input' : '#search-input').focus();
 });
 
 // The scanner has no way to know when the OS suspends the camera out from

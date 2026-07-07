@@ -137,7 +137,7 @@
           </div>
         </div>
 
-        <div class="panel settings-panel logout-panel">
+        <div class="panel panel-full">
           <button id="logout-btn" class="btn-ghost btn-block">Log out</button>
         </div>
       </section>
@@ -225,8 +225,8 @@
         </div>
         <div class="alt-actions">
           <button type="button" id="create-product-open" class="btn-ghost small subtle">+ Product</button>
-          <button type="button" id="meal-builder-open" class="btn-ghost small subtle">+ New meal <kbd class="shortcut-hint-inline" data-shortcut-key="newMeal"></kbd></button>
-          <button type="button" id="copy-day-open" class="btn-ghost small subtle">+ Copy from day <kbd class="shortcut-hint-inline" data-shortcut-key="copyFromDay"></kbd></button>
+          <button type="button" id="meal-builder-open" class="btn-ghost small subtle">+ Meal <kbd class="shortcut-hint-inline" data-shortcut-key="newMeal"></kbd></button>
+          <button type="button" id="copy-day-open" class="btn-ghost small subtle">+ Copy <kbd class="shortcut-hint-inline" data-shortcut-key="copyFromDay"></kbd></button>
         </div>
         <div id="search-results" class="result-list"></div>
       </div>
@@ -248,7 +248,14 @@
       <div id="log-modal-meal-step" class="hidden">
         <button type="button" id="meal-builder-cancel" class="btn-ghost small">← Cancel</button>
 
-        <input type="search" id="meal-search-input" data-list-nav="true" placeholder="Search products to add..." />
+        <div class="row search-with-scan">
+          <input type="search" id="meal-search-input" data-list-nav="true" placeholder="Search products to add..." />
+          <button type="button" id="meal-scan-barcode-btn" class="btn-ghost btn-icon" aria-label="Scan barcode" title="Scan barcode">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 7V5a1 1 0 011-1h2M4 17v2a1 1 0 001 1h2M20 7V5a1 1 0 00-1-1h-2M20 17v2a1 1 0 01-1 1h-2M7 8v8M10 8v8M13 8v8M16 8v8" />
+            </svg>
+          </button>
+        </div>
         <div id="meal-search-results" class="result-list"></div>
 
         <h3>Products in this meal</h3>

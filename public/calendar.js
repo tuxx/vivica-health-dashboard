@@ -364,9 +364,14 @@ function renderDayPanel(ds, data) {
   }).join('');
 
   // Header summary bar (Energy) — stays visible whether the tile grid is collapsed or not.
+  // Shows kcal remaining for the day; the expanded tile grid below keeps the consumed/goal
+  // breakdown (see the Energy day-total-tile above), so both views stay useful side by side.
   const energyValue = round(stats.enercc_kcal || 0, 0);
   const energyGoal = parseInt(goal.enercc_kcal, 10);
-  $('#day-totals-summary-text').textContent = energyGoal ? `${energyValue} / ${energyGoal} kcal` : `${energyValue} kcal`;
+  const energyRemaining = energyGoal - energyValue;
+  $('#day-totals-summary-text').textContent = energyGoal
+    ? (energyRemaining >= 0 ? `${energyRemaining} kcal remaining` : `${Math.abs(energyRemaining)} kcal over`)
+    : `${energyValue} kcal`;
   const summaryFill = $('#day-totals-summary-fill');
   summaryFill.style.width = `${energyGoal ? tileBarFillPercent(energyValue, energyGoal) : 0}%`;
   summaryFill.classList.toggle('over-goal', !!energyGoal && energyValue > energyGoal);

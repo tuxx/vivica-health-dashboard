@@ -301,7 +301,6 @@ button { cursor: pointer; }
 .settings-panel { max-width: 480px; }
 .settings-panel h3:first-child { margin-top: 0; }
 .settings-panel + .settings-panel { margin-top: 1.25rem; }
-.logout-panel { max-width: 240px; }
 
 .panel-full { grid-column: 1 / -1; }
 

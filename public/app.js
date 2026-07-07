@@ -658,9 +658,9 @@ function openMealBuilder() {
   $('#meal-name').value = '';
   $('#meal-favorite').checked = false;
   $('#meal-search-input').value = '';
-  $('#meal-search-results').innerHTML = '';
   $('#meal-error').classList.add('hidden');
   renderMealItems();
+  loadMealRecentProducts();
 
   $('#log-modal-search-step').classList.add('hidden');
   $('#log-modal-create-step').classList.add('hidden');
@@ -670,10 +670,28 @@ function openMealBuilder() {
 
 $('#meal-search-input').addEventListener('input', debounce((e) => {
   const val = e.target.value;
-  if (val.length < 2) { $('#meal-search-results').innerHTML = ''; return; }
+  if (val.length < 2) { loadMealRecentProducts(); return; }
   runMealProductSearch(val);
 }, 350));
 setupListKeyboardNav($('#meal-search-input'), () => $('#meal-search-results'));
+
+// Defaults the meal-builder's product list to recently used products (mirrors the
+// "Recent" quick list in the main search step) instead of leaving it blank until typed.
+async function loadMealRecentProducts() {
+  const container = $('#meal-search-results');
+  container.innerHTML = '<p class="muted">Loading...</p>';
+  try {
+    const res = await api('/products/recent');
+    const items = (res.data || []).filter((item) => item.type_record === 'product');
+    renderResultList(container, items, {
+      metaFn: (item) => `used ${item.use_count}×`,
+      onClick: openQtyModal
+    });
+  } catch (err) {
+    container.innerHTML = `<p class="error"></p>`;
+    container.querySelector('.error').textContent = err.message;
+  }
+}
 
 async function runMealProductSearch(val) {
   const container = $('#meal-search-results');
