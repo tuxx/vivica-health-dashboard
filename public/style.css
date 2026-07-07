@@ -715,6 +715,7 @@ button { cursor: pointer; }
   .day-date-group { flex: 1; justify-content: center; }
   .day-title-btn { font-size: 1.15rem; }
   .day-actions-group { flex: 1 1 100%; }
+  #day-panel-log { order: -1; }
 
   .calendar-popover { width: min(320px, 92vw); }
   .calendar-toolbar { gap: 0.35rem; }
