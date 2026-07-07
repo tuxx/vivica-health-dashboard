@@ -226,7 +226,7 @@ label {
   margin-bottom: 0.9rem;
 }
 label.checkbox-label { flex-direction: row; align-items: center; gap: 0.5rem; }
-label.checkbox-label input { width: auto; }
+label.checkbox-label input:not([type="checkbox"]) { width: auto; }
 
 input[type="checkbox"] {
   -webkit-appearance: none;
@@ -369,6 +369,8 @@ button { cursor: pointer; }
 .settings-panel + .settings-panel { margin-top: 1.25rem; }
 
 .panel-full { grid-column: 1 / -1; }
+
+#profile-view > .panel-full { margin-top: 1.5rem; }
 
 /* ---------- profile ---------- */
 
