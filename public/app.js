@@ -827,6 +827,7 @@ function openCreateProductStep(name, { back, onCreate }) {
   $('#create-product-description').value = name || '';
   $('#create-product-amount').value = 100;
   $('#create-product-unit').value = 'g';
+  $('#create-product-portion').value = '';
   CREATE_PRODUCT_FIELDS.forEach((f) => { $(`#create-product-${f}`).value = ''; });
 
   $('#log-modal-search-step').classList.add('hidden');
@@ -849,10 +850,12 @@ $('#create-product-form').addEventListener('submit', async (e) => {
   const description = $('#create-product-description').value.trim();
   const amount_value = Number($('#create-product-amount').value);
   const amount_unit = $('#create-product-unit').value.trim();
+  const portionInput = $('#create-product-portion').value;
   const payload = {
     description,
     amount_value,
     amount_unit,
+    ...(portionInput ? { portion_amount: Number(portionInput) } : {}),
     values: {
       enercc_kcal: Number($('#create-product-kcal').value) || 0,
       prot_g: Number($('#create-product-protein').value) || 0,

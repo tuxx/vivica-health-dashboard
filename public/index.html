@@ -269,11 +269,12 @@
           <label>Product name<input type="text" id="create-product-description" required minlength="2" placeholder="e.g. Homemade granola" /></label>
 
           <div class="row">
-            <label>Serving amount<input type="number" id="create-product-amount" min="0.01" step="any" required value="100" /></label>
+            <label>Total weight<input type="number" id="create-product-amount" min="0.01" step="any" required value="100" /></label>
             <label>Unit<input type="text" id="create-product-unit" required value="g" placeholder="g, ml, piece..." /></label>
           </div>
+          <label>Serving size <span class="muted">(optional, in the unit above — e.g. 30)</span><input type="number" id="create-product-portion" min="0.01" step="any" placeholder="e.g. one portion's weight" /></label>
 
-          <p class="muted">Nutrient values per serving amount above</p>
+          <p class="muted">Nutrient values per total weight above</p>
           <div class="row">
             <label>Energy (kcal)<input type="number" id="create-product-kcal" min="0" step="any" required /></label>
             <label>Protein (g)<input type="number" id="create-product-protein" min="0" step="any" required /></label>
