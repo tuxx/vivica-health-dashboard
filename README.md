@@ -13,44 +13,50 @@ It's a small Node.js server that talks to the same API the mobile app uses (`api
 - **Day view** — a single day's food log, full width. Click the date to pick another
   day from a small calendar popover, or use `‹`/`›` to step a day at a time.
 - **Collapsible nutrient totals** — Energy/Protein/Fat/Carbs/Fiber progress bars,
-  tucked behind a one-line Energy summary.
+  tucked behind a one-line Energy summary. Tap a nutrient tile for a breakdown of
+  that day's total by meal/day-part, with each item's percentage contribution.
 - **Log food** — search the product database, or pick from Recent/Frequent, with
   keyboard navigation through results. Defaults the meal/day-part to whatever fits
   the current time of day.
 - **Edit or delete logged entries** — correct an entry's amount, serving, or time
   without deleting and re-logging it.
 - **Build a meal** — combine products into a reusable meal that syncs back to the app.
-- **Copy entries from another day** — pick a day, choose which items to bring over.
-- **Command palette** (`Ctrl`/`Cmd`+`K`) — jump to any page or straight into a
-  product/meal search.
+- **Copy entries from another day** — quick-pick chips show which recent days have
+  logged items (and how many), or pick any date and choose items to bring over.
 - **Scan a barcode** — use your webcam (desktop) or phone camera (mobile) to scan a
   product's barcode instead of typing/searching. Requires HTTPS — see
   [Barcode scanning](#barcode-scanning) below.
 - **Profile** — read-only account info, care team/practice, and medical form.
-- **Settings** — theme, time format, first day of week, date display format.
+- **Settings** — theme, time format, first day of week, date display format,
+  rebindable keyboard shortcuts, and which day-parts (breakfast, lunch, etc.) show
+  up in the day view.
 - Mobile-friendly.
 
 There's no build step and no external dependencies — just Node's built-in `http` server, `fetch`, and `node:sqlite` for local caching.
-
-See [todo.md](./todo.md) for what's planned/in progress.
 
 ## Keyboard shortcuts
 
 | Key | Action |
 | --- | --- |
-| `N` / `L` | Log food for the currently-viewed day |
-| `B` | Build a meal |
-| `C` | Food Log |
-| `P` | Profile |
-| `S` | Settings |
-| `Ctrl`/`Cmd` + `K` | Command palette |
-| `/` | Focus the visible search box |
-| `↑` / `↓` | Move through search results |
-| `Enter` | Select the highlighted result |
+| `T` | Jump to today |
+| `N` | Log food for the selected day |
+| `R` | Create a new product |
+| `M` | Add new meal |
+| `D` | Copy from day |
+| `B` | Scan barcode |
+| `C` | Food Log tab |
+| `P` | Profile tab |
+| `S` | Settings tab |
+| `/` | Focus search |
+| `↑` / `↓` | Move through search results or day parts |
+| `←` / `→` | Move between the sidebar and the day panel |
+| `Enter` | Select the highlighted result, or log food for the focused day part |
 | `Esc` | Close the current modal/popover, or cancel |
 | `?` | Show this list |
 
-(Also in-app under Settings → Keyboard shortcuts, or press `?` anytime.)
+Every shortcut above (except the arrow/Enter/Esc navigation keys) can be
+rebound under Settings → Keyboard shortcuts, which also has a toggle to show
+the current key as a badge on each button.
 
 ## Requirements
 
@@ -114,8 +120,7 @@ default, so the dashboard is reachable from other devices on the network.
 ### Single session only
 
 The server holds one Vivica session at a time. Logging in as a different account
-replaces it — run one instance per Vivica account (see [todo.md](./todo.md) for
-plans to support multiple concurrent sessions).
+replaces it — run one instance per Vivica account.
 
 ### Vivica API
 
