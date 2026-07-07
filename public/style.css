@@ -16,6 +16,7 @@
 
   --bg: #f6f7f8;
   --surface: #ffffff;
+  --surface-alt: #eef0f2;
   --border: #e3e5e8;
   --text: #1c1f23;
   --muted: #6b7280;
@@ -30,6 +31,7 @@
   :root {
     --bg: #16181c;
     --surface: #1e2126;
+    --surface-alt: #262a31;
     --border: #2c3038;
     --text: #e8e9eb;
     --muted: #9aa1ab;
@@ -41,6 +43,7 @@
 :root[data-theme="dark"] {
   --bg: #16181c;
   --surface: #1e2126;
+  --surface-alt: #262a31;
   --border: #2c3038;
   --text: #e8e9eb;
   --muted: #9aa1ab;
@@ -50,6 +53,7 @@
 :root[data-theme="light"] {
   --bg: #f6f7f8;
   --surface: #ffffff;
+  --surface-alt: #eef0f2;
   --border: #e3e5e8;
   --text: #1c1f23;
   --muted: #6b7280;
@@ -481,7 +485,7 @@ button { cursor: pointer; }
   display: flex;
   flex-direction: column;
 }
-#log-back-to-search { margin-bottom: 0.9rem; }
+.modal-back-btn { margin-bottom: 0.9rem; }
 
 .search-with-scan { align-items: center; margin-bottom: 0.8rem; }
 .search-with-scan #search-input { flex: 1; margin-bottom: 0; }
@@ -519,7 +523,9 @@ button { cursor: pointer; }
 .day-panel-page { max-width: 780px; }
 
 .day-panel-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.9rem; }
-.day-panel-header .spacer { flex: 1; }
+.day-nav-group { display: flex; align-items: center; gap: 0.5rem; }
+.day-actions-group { display: flex; align-items: center; gap: 0.5rem; flex: 1; }
+.day-actions-group .spacer { flex: 1; }
 .day-title-btn {
   display: inline-flex; align-items: center; gap: 0.3rem;
   background: none; border: none; cursor: pointer;
@@ -633,7 +639,7 @@ button { cursor: pointer; }
   padding: 0.4rem 0.7rem;
   border-radius: 8px;
 }
-.day-part-group:nth-child(odd) { background: var(--surface); }
+.day-part-group:nth-child(odd) { background: var(--surface-alt); }
 .day-part-group:nth-child(even) { background: var(--bg); }
 .day-part-group:hover { background: var(--accent-faded); }
 .day-part-group h3 { margin: 0; }
@@ -704,7 +710,9 @@ button { cursor: pointer; }
   .row:not(.segmented):not(.modal-actions):not(.search-with-scan) { flex-direction: column; gap: 0; }
 
   .day-panel-header { flex-wrap: wrap; }
-  .day-title-btn { flex: 1 1 100%; order: -1; font-size: 1.15rem; }
+  .day-nav-group { flex: 1 1 100%; justify-content: center; }
+  .day-title-btn { font-size: 1.15rem; }
+  .day-actions-group { flex: 1 1 100%; }
 
   .calendar-popover { width: min(320px, 92vw); }
   .calendar-toolbar { gap: 0.35rem; }

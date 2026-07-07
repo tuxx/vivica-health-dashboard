@@ -204,6 +204,10 @@ document.addEventListener('keydown', (e) => {
   if (matchesShortcut(e, 'logFood')) {
     openLogModal(shortcutTargetDate());
     e.preventDefault();
+  } else if (matchesShortcut(e, 'createProduct')) {
+    openLogModal(shortcutTargetDate());
+    $('#create-product-open').click();
+    e.preventDefault();
   } else if (matchesShortcut(e, 'newMeal')) {
     openLogModal(shortcutTargetDate());
     openMealBuilder();

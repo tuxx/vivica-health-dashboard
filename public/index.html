@@ -71,16 +71,20 @@
       <section id="calendar-view" class="view">
         <div class="day-panel-page">
           <div class="day-panel-header">
-            <button id="day-prev" class="btn-ghost btn-icon" aria-label="Previous day">‹</button>
-            <button type="button" id="day-panel-date" class="day-title-btn">
-              <span id="day-panel-date-text"></span>
-              <svg class="chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
-            </button>
-            <button id="day-next" class="btn-ghost btn-icon" aria-label="Next day">›</button>
-            <button id="day-today" class="btn-ghost small">Today <kbd class="shortcut-hint-inline" data-shortcut-key="today"></kbd></button>
-            <span class="spacer"></span>
-            <button id="day-panel-log" class="btn-primary small">+ Log food <kbd class="shortcut-hint-inline" data-shortcut-key="logFood"></kbd></button>
-            <button id="day-panel-refresh" class="btn-ghost btn-icon" title="Refresh from server">⟳</button>
+            <div class="day-nav-group">
+              <button id="day-prev" class="btn-ghost btn-icon" aria-label="Previous day">‹</button>
+              <button type="button" id="day-panel-date" class="day-title-btn">
+                <span id="day-panel-date-text"></span>
+                <svg class="chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+              </button>
+              <button id="day-next" class="btn-ghost btn-icon" aria-label="Next day">›</button>
+            </div>
+            <div class="day-actions-group">
+              <button id="day-today" class="btn-ghost small">Today <kbd class="shortcut-hint-inline" data-shortcut-key="today"></kbd></button>
+              <span class="spacer"></span>
+              <button id="day-panel-log" class="btn-primary small">+ Log food <kbd class="shortcut-hint-inline" data-shortcut-key="logFood"></kbd></button>
+              <button id="day-panel-refresh" class="btn-ghost btn-icon" title="Refresh from server">⟳</button>
+            </div>
           </div>
 
           <div class="panel" id="day-panel">
@@ -224,7 +228,7 @@
           </button>
         </div>
         <div class="alt-actions">
-          <button type="button" id="create-product-open" class="btn-ghost small subtle">+ Product</button>
+          <button type="button" id="create-product-open" class="btn-ghost small subtle">+ Product <kbd class="shortcut-hint-inline" data-shortcut-key="createProduct"></kbd></button>
           <button type="button" id="meal-builder-open" class="btn-ghost small subtle">+ Meal <kbd class="shortcut-hint-inline" data-shortcut-key="newMeal"></kbd></button>
           <button type="button" id="copy-day-open" class="btn-ghost small subtle">+ Copy <kbd class="shortcut-hint-inline" data-shortcut-key="copyFromDay"></kbd></button>
         </div>
@@ -232,7 +236,7 @@
       </div>
 
       <div id="log-modal-copy-step" class="hidden">
-        <button type="button" id="copy-day-cancel" class="btn-ghost small">← Cancel</button>
+        <button type="button" id="copy-day-cancel" class="btn-ghost small modal-back-btn">← Cancel</button>
 
         <div class="copy-toolbar">
           <label>Copy from date<input type="date" id="copy-source-date" lang="en-GB" /></label>
@@ -246,7 +250,7 @@
       </div>
 
       <div id="log-modal-meal-step" class="hidden">
-        <button type="button" id="meal-builder-cancel" class="btn-ghost small">← Cancel</button>
+        <button type="button" id="meal-builder-cancel" class="btn-ghost small modal-back-btn">← Cancel</button>
 
         <div class="row search-with-scan">
           <input type="search" id="meal-search-input" data-list-nav="true" placeholder="Search products to add..." />
@@ -271,7 +275,7 @@
       </div>
 
       <div id="log-modal-create-step" class="hidden">
-        <button type="button" id="create-product-cancel" class="btn-ghost small">← Cancel</button>
+        <button type="button" id="create-product-cancel" class="btn-ghost small modal-back-btn">← Cancel</button>
 
         <form id="create-product-form">
           <label>Product name<input type="text" id="create-product-description" required minlength="2" placeholder="e.g. Homemade granola" /></label>
@@ -306,7 +310,7 @@
       </div>
 
       <div id="log-modal-form-step" class="hidden">
-        <button type="button" id="log-back-to-search" class="btn-ghost small">← Back to search</button>
+        <button type="button" id="log-back-to-search" class="btn-ghost small modal-back-btn">← Back to search</button>
         <form id="log-form">
           <p id="log-item-name" class="item-name"></p>
 

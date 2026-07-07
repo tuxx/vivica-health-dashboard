@@ -6,6 +6,7 @@
 const SHORTCUT_ACTIONS = [
   { id: 'today', label: 'Jump to today', group: 'Day view', default: 't' },
   { id: 'logFood', label: 'Log food for the selected day', group: 'Actions', default: 'n' },
+  { id: 'createProduct', label: 'Create a new product', group: 'Actions', default: 'r' },
   { id: 'newMeal', label: 'Add new meal', group: 'Actions', default: 'm' },
   { id: 'copyFromDay', label: 'Copy from day', group: 'Actions', default: 'd' },
   { id: 'scanBarcode', label: 'Scan barcode', group: 'Actions', default: 'b' },
