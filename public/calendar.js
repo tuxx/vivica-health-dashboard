@@ -323,7 +323,7 @@ async function selectDay(ds) {
   $('#day-today').classList.toggle('is-active', ds === todayStr());
 
   $('#day-panel-date-text').textContent = formatDateDisplay(ds);
-  $('#day-panel-items').innerHTML = '<p class="muted">Loading…</p>';
+  setLoadingState($('#day-panel-items'), 4);
   $('#day-panel-totals').innerHTML = '';
 
   const data = await fetchDayStats(ds);
@@ -341,7 +341,7 @@ function renderDayPanel(ds, data) {
     totalsEl.innerHTML = '';
     $('#day-totals-summary-text').textContent = '';
     $('#day-totals-summary-fill').style.width = '0%';
-    itemsEl.innerHTML = `<p class="error">Could not load this day: ${escapeHtml(data.message || '')}</p>`;
+    setErrorState(itemsEl, `Could not load this day: ${data.message || ''}`);
     return;
   }
 
@@ -356,12 +356,16 @@ function renderDayPanel(ds, data) {
     const bar = goalVal
       ? `<div class="tile-bar"><div class="tile-bar-fill${value > goalVal ? ' over-goal' : ''}" style="width: ${tileBarFillPercent(value, goalVal)}%"></div></div>`
       : '';
-    return `<div class="day-total-tile">
+    return `<button type="button" class="day-total-tile" data-nutrient-key="${key}"
+      title="Show ${label} breakdown by part of day">
       <div class="value">${value}${goalStr} ${unit}</div>
       <div class="label">${label}</div>
       ${bar}
-    </div>`;
+    </button>`;
   }).join('');
+  totalsEl.querySelectorAll('[data-nutrient-key]').forEach((tile) => {
+    tile.addEventListener('click', () => openNutrientBreakdown(tile.dataset.nutrientKey));
+  });
 
   // Header summary bar (Energy) — stays visible whether the tile grid is collapsed or not.
   // Shows kcal remaining for the day; the expanded tile grid below keeps the consumed/goal
@@ -400,7 +404,13 @@ function renderDayPanel(ds, data) {
     </div>`;
   });
 
-  itemsEl.innerHTML = groups.length ? groups.join('') : '<p class="muted">Nothing logged for this day.</p>';
+  if (!groups.length) {
+    setEmptyState(itemsEl, 'Nothing logged for this day.', {
+      action: { label: '+ Log food', onClick: () => window.startLogForDayPart && window.startLogForDayPart(ds) }
+    });
+    return;
+  }
+  itemsEl.innerHTML = groups.join('');
 
   itemsEl.querySelectorAll('[data-delete-pivot]').forEach((btn) => {
     btn.addEventListener('click', () => deleteLoggedItem(btn.dataset, ds));
@@ -441,8 +451,89 @@ function renderDayItemRow(item, ds) {
   </div>`;
 }
 
+// ---------- nutrient drill-down (tap a day-total tile) ----------
+// Breakdown of one nutrient by part of day, with each item's share of the day total —
+// computed entirely from the already-loaded day stats, no extra API calls (mirrors the
+// original app's percentageOfEatenDayPartSubTitle in Nutrition/Index.vue).
+
+function nutrientAmountStr(value, key, unit) {
+  return `${round(value || 0, key === 'enercc_kcal' ? 0 : 1)} ${unit}`;
+}
+
+function openNutrientBreakdown(key) {
+  const ds = calendarSelectedDate;
+  const data = calendarCache[ds];
+  const tile = NUTRIENT_TILES.find((t) => t.key === key);
+  if (!ds || !tile || !data || data.error) return;
+
+  trackFocusBeforeModal();
+
+  const stats = data.stats || {};
+  const goal = data.goal || {};
+  const dayTotal = stats[key] || 0;
+  const goalVal = parseInt(goal[key], 10);
+
+  $('#nutrient-modal-title').textContent = `${tile.label} — ${formatDateDisplay(ds)}`;
+  $('#nutrient-modal-summary').textContent =
+    `${nutrientAmountStr(dayTotal, key, tile.unit)} total` + (goalVal ? ` of ${goalVal} ${tile.unit} goal` : '');
+
+  const breakdownEl = $('#nutrient-modal-breakdown');
+  const items = data.items || {};
+  const orderedDayParts = (window.dayParts && window.dayParts.length ? window.dayParts : Object.keys(items))
+    .filter((dp) => (items[dp] || []).length);
+
+  if (!orderedDayParts.length) {
+    setEmptyState(breakdownEl, 'Nothing logged for this day.');
+  } else {
+    breakdownEl.innerHTML = orderedDayParts.map((dp) => {
+      const dayItems = (items[dp] || []).slice()
+        .sort((a, b) => (b.values?.[key] || 0) - (a.values?.[key] || 0));
+      const partTotal = dayItems.reduce((sum, item) => sum + (item.values?.[key] || 0), 0);
+      const partPct = dayTotal ? `${round(partTotal / dayTotal * 100, 1)}%` : '';
+
+      const rows = dayItems.map((item) => {
+        const value = item.values?.[key] || 0;
+        const pct = dayTotal ? `${round(value / dayTotal * 100, 1)}%` : '';
+        const name = item.type_record === 'meal' ? (item.meal_name || item.description) : item.description;
+        return `<div class="nutrient-breakdown-item">
+          <span class="name">${escapeHtml(name || '')}</span>
+          <span class="amount">${nutrientAmountStr(value, key, tile.unit)}</span>
+          <span class="pct">${pct}</span>
+        </div>`;
+      }).join('');
+
+      const label = escapeHtml(ucFirst(dp.replace(/_/g, ' ')));
+      return `<div class="nutrient-breakdown-part">
+        <div class="nutrient-breakdown-header">
+          <h3>${label}</h3>
+          <span class="part-total">${nutrientAmountStr(partTotal, key, tile.unit)}${partPct ? ` (${partPct})` : ''}</span>
+        </div>
+        ${rows}
+      </div>`;
+    }).join('');
+  }
+
+  $('#nutrient-modal').classList.remove('hidden');
+  $('#nutrient-modal-close').focus();
+}
+
+window.closeNutrientModal = function closeNutrientModal() {
+  $('#nutrient-modal').classList.add('hidden');
+  restoreFocusAfterModal();
+};
+$('#nutrient-modal-close').addEventListener('click', window.closeNutrientModal);
+$('#nutrient-modal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) window.closeNutrientModal();
+});
+
 async function deleteLoggedItem(dataset, ds) {
-  if (!confirm(`Remove "${dataset.deleteName}" from this day?`)) return;
+  const confirmed = await showConfirmDialog({
+    title: 'Remove item',
+    message: `Remove "${dataset.deleteName}" from this day?`,
+    confirmLabel: 'Remove',
+    danger: true
+  });
+  if (!confirmed) return;
   try {
     await api('/nutrition/delete_scheduled_item', {
       method: 'POST',
@@ -453,6 +544,6 @@ async function deleteLoggedItem(dataset, ds) {
     updateDayCell(ds, data);
     renderDayPanel(ds, data);
   } catch (err) {
-    alert('Could not remove item: ' + err.message);
+    await showAlertDialog('Could not remove item', err.message);
   }
 }

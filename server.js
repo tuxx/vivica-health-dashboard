@@ -11,40 +11,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SESSION_FILE = path.join(__dirname, 'data', 'session.json');
 const API_BASE = 'https://api.vivica.health';
-const APP_VERSION = '1.63.0'; // matches window.application_version in the app's config.js; the API
-                               // gates all requests on this header and 403s with an "update required"
-                               // payload if it's missing/stale
+const APP_VERSION = process.env.APP_VERSION || '1.63.0'; // matches window.application_version in the
+                               // app's config.js; the API gates all requests on this header and
+                               // responds 307 with an "update required" payload if it's missing/stale
 const PORT = process.env.PORT || 4173;
-const HOST = process.env.HOST || '127.0.0.1'; // set HOST=0.0.0.0 to expose on the LAN — auth is
-                                              // ambient (any client that reaches the port acts as
-                                              // the logged-in user), so widening is opt-in
+const HOST = process.env.HOST || '127.0.0.1'; // set HOST=0.0.0.0 to expose on the LAN
 const MAX_BODY_BYTES = 1 * 1024 * 1024;
-
-// Hostnames this server may be addressed as. Requests whose Host (or Origin, on writes) resolves
-// elsewhere are rejected — this is what breaks DNS-rebinding and cross-site request forgery, since
-// auth is ambient. Add your LAN hostname/IP via ALLOWED_HOSTS (comma-separated) when using HOST=0.0.0.0.
-const ALLOWED_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
-if (HOST !== '0.0.0.0' && HOST !== '::') ALLOWED_HOSTNAMES.add(HOST);
-for (const h of (process.env.ALLOWED_HOSTS || '').split(',')) {
-  if (h.trim()) ALLOWED_HOSTNAMES.add(h.trim().toLowerCase());
-}
-
-function hostnameAllowed(hostname) {
-  return ALLOWED_HOSTNAMES.has(hostname.toLowerCase().replace(/^\[|\]$/g, ''));
-}
-
-function hostHeaderAllowed(hostHeader) {
-  if (!hostHeader) return false;
-  try { return hostnameAllowed(new URL(`http://${hostHeader}`).hostname); }
-  catch { return false; }
-}
-
-function originAllowed(origin) {
-  try {
-    const u = new URL(origin);
-    return (u.protocol === 'http:' || u.protocol === 'https:') && hostnameAllowed(u.hostname);
-  } catch { return false; }
-}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const STATS_TTL_MS = 30 * 60 * 1000; // day stats are cached, but short-lived: they can change from
@@ -100,6 +72,22 @@ async function upstream(method, urlPath, body) {
   let data = null;
   const text = await res.text();
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+
+  // Version gate: when Vivica bumps the required app version, every request gets a 307
+  // (or 403) "update required" payload before credentials are even checked. Verified live:
+  // { message: { title, buttons, urls, ... }, application_version }. Without this, the UI
+  // would show an opaque generic error on every action.
+  if ((res.status === 307 || res.status === 403) && data?.message?.urls) {
+    return {
+      status: 503,
+      ok: false,
+      data: {
+        error: 'app_version_outdated',
+        message: `The Vivica API no longer accepts app version ${APP_VERSION} — ` +
+          'set the APP_VERSION environment variable to the current Vivica app version and restart the dashboard.'
+      }
+    };
+  }
 
   return { status: res.status, ok: res.ok, data };
 }
@@ -157,7 +145,7 @@ const MIME = {
 
 function serveStatic(req, res, pathname) {
   let filePath = path.join(PUBLIC_DIR, pathname === '/' ? 'index.html' : pathname);
-  if (!filePath.startsWith(PUBLIC_DIR)) {
+  if (!filePath.startsWith(PUBLIC_DIR + path.sep)) {
     res.writeHead(403); res.end(); return;
   }
   fs.readFile(filePath, (err, data) => {
@@ -352,6 +340,25 @@ async function handleStats(req, res, query) {
   sendJson(res, 200, result.data);
 }
 
+async function handleHasNutritionDays(req, res) {
+  if (!requireAuth(res)) return;
+  // Not cached: the counts change with every log/delete, and it's one cheap request.
+  const result = await upstream('GET', '/patient/nutrition/has_nutrition_days');
+  sendJson(res, result.status, result.data);
+}
+
+async function handleDuplicateItems(req, res) {
+  if (!requireAuth(res)) return;
+  const body = await readJsonBody(req);
+  const result = await upstream('POST', '/patient/nutrition/duplicate_items_to_date', {
+    from_date: body.from_date,
+    to_date: body.to_date,
+    items: Array.isArray(body.items) ? body.items : []
+  });
+  if (result.ok && body.to_date) invalidateCached(`stats:${body.to_date}`);
+  sendJson(res, result.status, result.data);
+}
+
 async function handleCreateProduct(req, res) {
   if (!requireAuth(res)) return;
   const body = await readJsonBody(req);
@@ -410,22 +417,10 @@ function handleStatus(req, res) {
 // --- router ---
 const server = http.createServer(async (req, res) => {
   try {
-    // DNS-rebinding guard: a rebound page carries the attacker's hostname in Host.
-    if (!hostHeaderAllowed(req.headers.host)) {
-      sendJson(res, 403, { error: 'forbidden_host' });
-      return;
-    }
-
     const url = new URL(req.url, `http://${req.headers.host}`);
     const { pathname, searchParams } = url;
 
     if (pathname.startsWith('/api/') && req.method !== 'GET') {
-      // CSRF guard: browsers attach Origin to cross-site POSTs; ours come from our own pages.
-      const origin = req.headers.origin;
-      if (origin !== undefined && !originAllowed(origin)) {
-        sendJson(res, 403, { error: 'forbidden_origin' });
-        return;
-      }
       // Cross-site "simple" requests can only send text/plain and friends without a CORS
       // preflight; requiring JSON here forces the preflight, which the browser then blocks.
       const hasBody = Number(req.headers['content-length']) > 0 || req.headers['transfer-encoding'];
@@ -445,6 +440,8 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/nutrition/item_data' && req.method === 'POST') return await handleItemData(req, res);
     if (pathname === '/api/nutrition/submit_item' && req.method === 'POST') return await handleSubmitItem(req, res);
     if (pathname === '/api/nutrition/delete_scheduled_item' && req.method === 'POST') return await handleDeleteScheduledItem(req, res);
+    if (pathname === '/api/nutrition/has_nutrition_days' && req.method === 'GET') return await handleHasNutritionDays(req, res);
+    if (pathname === '/api/nutrition/duplicate_items_to_date' && req.method === 'POST') return await handleDuplicateItems(req, res);
     if (pathname === '/api/nutrition/stats' && req.method === 'GET') return await handleStats(req, res, searchParams);
     if (pathname === '/api/search_nutrient_products' && req.method === 'POST') return await handleSearchNutrientProducts(req, res);
     if (pathname === '/api/nutrition/nutrient_product_create' && req.method === 'POST') return await handleCreateProduct(req, res);

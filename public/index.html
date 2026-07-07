@@ -123,8 +123,7 @@
           <p class="muted">Read-only — pulled from your Vivica account. No editing endpoint has been identified yet.</p>
         </header>
 
-        <div id="profile-loading" class="muted">Loading…</div>
-        <div id="profile-error" class="error hidden"></div>
+        <div id="profile-loading"></div>
 
         <div id="profile-content" class="grid hidden">
           <div class="panel">
@@ -240,6 +239,7 @@
       <div id="log-modal-copy-step" class="hidden">
         <button type="button" id="copy-day-cancel" class="btn-ghost small modal-back-btn">← Cancel</button>
 
+        <div id="copy-day-list" class="copy-day-list"></div>
         <div class="copy-toolbar">
           <label>Copy from date<input type="date" id="copy-source-date" lang="en-GB" /></label>
           <label class="checkbox-label"><input type="checkbox" id="copy-select-all" /> Select all</label>
@@ -361,6 +361,28 @@
           <p id="log-success" class="success hidden"></p>
         </form>
       </div>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="modal hidden">
+    <div class="modal-box">
+      <h3 id="confirm-modal-title"></h3>
+      <p id="confirm-modal-message" class="muted"></p>
+      <div class="row modal-actions">
+        <button type="button" id="confirm-modal-cancel" class="btn-ghost">Cancel</button>
+        <button type="button" id="confirm-modal-confirm" class="btn-primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="nutrient-modal" class="modal hidden">
+    <div class="modal-box log-modal-box">
+      <div class="modal-header">
+        <h3 id="nutrient-modal-title"></h3>
+        <button type="button" id="nutrient-modal-close" class="btn-ghost btn-icon" aria-label="Close">✕</button>
+      </div>
+      <p id="nutrient-modal-summary" class="muted"></p>
+      <div id="nutrient-modal-breakdown"></div>
     </div>
   </div>
 

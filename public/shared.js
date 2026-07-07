@@ -247,6 +247,94 @@ function applyHighlight(items, idx) {
   items[idx].scrollIntoView({ block: 'nearest' });
 }
 
+// ---------- shared view states: skeleton / empty / error ----------
+// One loading, empty and error treatment for every view (see style.css counterparts),
+// instead of each view improvising "Loading…" text or silently swapping content.
+
+function setLoadingState(el, rows = 3) {
+  const row = `<div class="skeleton-row">
+    <div class="skeleton-thumb"></div>
+    <div class="skeleton-lines"><div class="skeleton-line"></div><div class="skeleton-line short"></div></div>
+  </div>`;
+  el.innerHTML = `<div class="skeleton-list" aria-hidden="true">${row.repeat(rows)}</div>`;
+}
+
+// `action: { label, onClick }` renders an optional action button under the message.
+function setEmptyState(el, message, { icon, action } = {}) {
+  el.innerHTML = '';
+  const block = document.createElement('div');
+  block.className = 'empty-state';
+  block.innerHTML = icon || foodIcon();
+  const p = document.createElement('p');
+  p.textContent = message;
+  block.appendChild(p);
+  if (action) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-ghost small';
+    btn.textContent = action.label;
+    btn.addEventListener('click', action.onClick);
+    block.appendChild(btn);
+  }
+  el.appendChild(block);
+}
+
+function setErrorState(el, message) {
+  el.innerHTML = '<p class="state-error"></p>';
+  el.querySelector('.state-error').textContent = message;
+}
+
+// ---------- confirm / alert dialog ----------
+// Promise-based replacement for native confirm()/alert(): same modal language as the
+// rest of the app, doesn't block the event loop, and plays nice with the focus stack.
+// showConfirmDialog(...) resolves true (confirm) or false (cancel/Escape/backdrop);
+// showAlertDialog(...) hides the cancel button and always resolves after dismissal.
+
+function showConfirmDialog({ title, message, confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false, alertOnly = false }) {
+  return new Promise((resolve) => {
+    trackFocusBeforeModal();
+    const modal = $('#confirm-modal');
+    const confirmBtn = $('#confirm-modal-confirm');
+    const cancelBtn = $('#confirm-modal-cancel');
+
+    $('#confirm-modal-title').textContent = title || '';
+    $('#confirm-modal-message').textContent = message || '';
+    confirmBtn.textContent = confirmLabel;
+    confirmBtn.className = danger ? 'btn-danger' : 'btn-primary';
+    cancelBtn.textContent = cancelLabel;
+    cancelBtn.classList.toggle('hidden', alertOnly);
+
+    function finish(result) {
+      modal.classList.add('hidden');
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      modal.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKeydown, true);
+      restoreFocusAfterModal();
+      resolve(result);
+    }
+    const onConfirm = () => finish(true);
+    const onCancel = () => finish(false);
+    const onBackdrop = (e) => { if (e.target === modal) finish(false); };
+    // Capture phase so Escape is consumed here before the app-wide Escape handler runs.
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
+    };
+
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+    modal.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKeydown, true);
+
+    modal.classList.remove('hidden');
+    confirmBtn.focus();
+  });
+}
+
+function showAlertDialog(title, message) {
+  return showConfirmDialog({ title, message, confirmLabel: 'OK', alertOnly: true });
+}
+
 // Every modal/popover open should push whatever had focus, and its close should pop
 // and restore it — otherwise focus is left on a now-hidden element (or drops to <body>),
 // which silently breaks any keyboard navigation scoped to "focus is inside container X".

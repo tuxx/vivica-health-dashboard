@@ -184,6 +184,9 @@ document.addEventListener('keydown', (e) => {
     } else if (!$('#scan-modal').classList.contains('hidden')) {
       closeScanModal();
       e.preventDefault();
+    } else if (!$('#nutrient-modal').classList.contains('hidden')) {
+      window.closeNutrientModal();
+      e.preventDefault();
     } else if (!$('#log-modal').classList.contains('hidden')) {
       closeLogModal();
       e.preventDefault();
@@ -432,7 +435,7 @@ setupListKeyboardNav($('#search-input'), () => $('#search-results'));
 
 async function runNutritionSearch(val) {
   const container = $('#search-results');
-  container.innerHTML = '<p class="muted">Searching...</p>';
+  setLoadingState(container);
   try {
     const res = await api('/nutrition/search', {
       method: 'POST',
@@ -450,23 +453,16 @@ async function runNutritionSearch(val) {
       selectLogItem(items[0]);
     }
   } catch (err) {
-    container.innerHTML = `<p class="error"></p>`;
-    container.querySelector('.error').textContent = err.message;
+    setErrorState(container, err.message);
   }
 }
 
 function renderResultList(container, items, { onClick, metaFn, searchTerm, onCreate } = {}) {
   container.innerHTML = '';
   if (!items.length) {
-    container.innerHTML = '<p class="muted">No results.</p>';
-    if (onCreate && searchTerm) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn-ghost small subtle';
-      btn.textContent = `+ Create "${searchTerm}" as new product`;
-      btn.addEventListener('click', () => onCreate(searchTerm));
-      container.appendChild(btn);
-    }
+    setEmptyState(container, 'No results.', (onCreate && searchTerm) ? {
+      action: { label: `+ Create "${searchTerm}" as new product`, onClick: () => onCreate(searchTerm) }
+    } : {});
     return;
   }
   for (const item of items) {
@@ -488,12 +484,16 @@ $('#show-frequent').addEventListener('click', () => { setActiveQuickButton('show
 
 async function loadQuickList(path) {
   const container = $('#search-results');
-  container.innerHTML = '<p class="muted">Loading...</p>';
-  const res = await api(path);
-  renderResultList(container, res.data, {
-    metaFn: (item) => `used ${item.use_count}×`,
-    onClick: selectLogItem
-  });
+  setLoadingState(container);
+  try {
+    const res = await api(path);
+    renderResultList(container, res.data, {
+      metaFn: (item) => `used ${item.use_count}×`,
+      onClick: selectLogItem
+    });
+  } catch (err) {
+    setErrorState(container, err.message);
+  }
 }
 
 async function selectLogItem(item) {
@@ -683,7 +683,7 @@ setupListKeyboardNav($('#meal-search-input'), () => $('#meal-search-results'));
 // "Recent" quick list in the main search step) instead of leaving it blank until typed.
 async function loadMealRecentProducts() {
   const container = $('#meal-search-results');
-  container.innerHTML = '<p class="muted">Loading...</p>';
+  setLoadingState(container);
   try {
     const res = await api('/products/recent');
     const items = (res.data || []).filter((item) => item.type_record === 'product');
@@ -692,14 +692,13 @@ async function loadMealRecentProducts() {
       onClick: openQtyModal
     });
   } catch (err) {
-    container.innerHTML = `<p class="error"></p>`;
-    container.querySelector('.error').textContent = err.message;
+    setErrorState(container, err.message);
   }
 }
 
 async function runMealProductSearch(val) {
   const container = $('#meal-search-results');
-  container.innerHTML = '<p class="muted">Searching...</p>';
+  setLoadingState(container);
   try {
     const res = await api('/search_nutrient_products', { method: 'POST', body: { query: val } });
     renderResultList(container, res.data || [], {
@@ -709,8 +708,7 @@ async function runMealProductSearch(val) {
       onCreate: (name) => openCreateProductStep(name, { back: 'meal', onCreate: openQtyModal })
     });
   } catch (err) {
-    container.innerHTML = `<p class="error"></p>`;
-    container.querySelector('.error').textContent = err.message;
+    setErrorState(container, err.message);
   }
 }
 
@@ -937,14 +935,51 @@ window.openCopyStep = function openCopyStep() {
   sourceDate.setDate(sourceDate.getDate() - 1);
   $('#copy-source-date').value = dateToStr(sourceDate);
   loadCopySourceDay($('#copy-source-date').value);
+  loadCopyDayPicks();
 };
 $('#copy-day-open').addEventListener('click', window.openCopyStep);
 $('#copy-day-cancel').addEventListener('click', backToSearchStep);
-$('#copy-source-date').addEventListener('change', (e) => loadCopySourceDay(e.target.value));
+$('#copy-source-date').addEventListener('change', (e) => {
+  loadCopySourceDay(e.target.value);
+  markActiveCopyDayPick(e.target.value);
+});
+
+// Quick-pick chips for days that actually have logged items (and how many), so the
+// user isn't blindly guessing dates in the picker. Backed by has_nutrition_days,
+// the same endpoint the original app's "copy day" screen uses.
+async function loadCopyDayPicks() {
+  const list = $('#copy-day-list');
+  list.innerHTML = '';
+  try {
+    const res = await api('/nutrition/has_nutrition_days');
+    const days = (res.data || []).filter((d) => d.items_count > 0);
+    days.forEach((d) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-ghost small copy-day-pick';
+      btn.dataset.date = d.date;
+      btn.innerHTML = `${escapeHtml(d.top_title || d.title || d.date)}<span class="count">${d.items_count}</span>`;
+      btn.addEventListener('click', () => {
+        $('#copy-source-date').value = d.date;
+        loadCopySourceDay(d.date);
+        markActiveCopyDayPick(d.date);
+      });
+      list.appendChild(btn);
+    });
+    markActiveCopyDayPick($('#copy-source-date').value);
+  } catch {
+    // Quick picks are a convenience on top of the plain date input — if they fail to
+    // load, leave the list empty rather than blocking the (still-functional) picker.
+  }
+}
+
+function markActiveCopyDayPick(dateStr) {
+  $$('.copy-day-pick').forEach((btn) => btn.classList.toggle('is-active', btn.dataset.date === dateStr));
+}
 
 async function loadCopySourceDay(dateStr) {
   const container = $('#copy-source-items');
-  container.innerHTML = '<p class="muted">Loading…</p>';
+  setLoadingState(container, 3);
   copySourceItems = [];
   updateCopySubmitState();
   try {
@@ -957,8 +992,7 @@ async function loadCopySourceDay(dateStr) {
     }
     renderCopySourceItems();
   } catch (err) {
-    container.innerHTML = `<p class="error"></p>`;
-    container.querySelector('.error').textContent = err.message;
+    setErrorState(container, err.message);
   }
 }
 
@@ -966,7 +1000,7 @@ function renderCopySourceItems() {
   const container = $('#copy-source-items');
   container.innerHTML = '';
   if (!copySourceItems.length) {
-    container.innerHTML = '<p class="muted">Nothing logged that day.</p>';
+    setEmptyState(container, 'Nothing logged that day.');
     updateCopySubmitState();
     return;
   }
@@ -1006,55 +1040,32 @@ $('#copy-submit').addEventListener('click', async () => {
   successEl.classList.add('hidden');
 
   const checkedIdxs = $$('.copy-item-checkbox').filter((cb) => cb.checked).map((cb) => Number(cb.dataset.idx));
+  const sourceDate = $('#copy-source-date').value;
   const targetDate = logContext?.date || todayStr();
-  let copied = 0;
-  let failed = 0;
+  const items = checkedIdxs.map((idx) => {
+    const item = copySourceItems[idx];
+    const isMeal = item.type_record === 'meal';
+    return { type: typeForRecord(item.type_record), id: isMeal ? item.meal_id : item.id, day_part: item.day_part };
+  });
 
   $('#copy-submit').disabled = true;
-  for (const idx of checkedIdxs) {
-    try {
-      await copyLoggedItemToDate(copySourceItems[idx], targetDate);
-      copied++;
-    } catch {
-      failed++;
-    }
-  }
-  $('#copy-submit').disabled = false;
-
-  if (copied && window.invalidateCalendarDay) window.invalidateCalendarDay(targetDate);
-
-  if (failed) {
-    errorEl.textContent = `Copied ${copied}, ${failed} failed — search for those manually if needed.`;
-    errorEl.classList.remove('hidden');
-  } else {
-    successEl.textContent = `Copied ${copied} item${copied === 1 ? '' : 's'}.`;
+  try {
+    // Single atomic call (up to 50 items) instead of resubmitting one item at a time —
+    // no partial-failure state to reconcile.
+    await api('/nutrition/duplicate_items_to_date', { method: 'POST', body: { from_date: sourceDate, to_date: targetDate, items } });
+    if (window.invalidateCalendarDay) window.invalidateCalendarDay(targetDate);
+    successEl.textContent = `Copied ${items.length} item${items.length === 1 ? '' : 's'}.`;
     successEl.classList.remove('hidden');
     setTimeout(() => {
       if (!$('#log-modal').classList.contains('hidden')) closeLogModal();
     }, 900);
+  } catch (err) {
+    errorEl.textContent = err.data?.errors ? Object.values(err.data.errors).flat().join(' ') : err.message;
+    errorEl.classList.remove('hidden');
+  } finally {
+    $('#copy-submit').disabled = false;
   }
 });
-
-async function copyLoggedItemToDate(item, targetDate) {
-  const isMeal = item.type_record === 'meal';
-  const id = isMeal ? item.meal_id : item.id;
-  const upstreamType = typeForRecord(item.type_record);
-  const itemData = await api('/nutrition/item_data', { method: 'POST', body: { type: upstreamType, id } });
-  const payload = {
-    ...itemData,
-    id,
-    type_record: item.type_record,
-    date: targetDate,
-    time: item.intended_time || nowTimeStr(),
-    day_part: item.day_part,
-    specify_method: item.nutrient_conversion_id ? 'conversion' : 'manual',
-    amount_value: item.nutrient_conversion_id ? '' : (item.used_product_amount ?? ''),
-    selected_conversion_id: item.nutrient_conversion_id || '',
-    amount_pieces: item.amount_pieces ?? item.used_amount ?? '',
-    meal_amount: item.meal_amount || 1
-  };
-  await api('/nutrition/submit_item', { method: 'POST', body: payload });
-}
 
 renderMealItems();
 boot();

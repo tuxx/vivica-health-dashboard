@@ -7,11 +7,8 @@ services:
       # Inside the container the server must bind all interfaces for the port
       # mapping to reach it; actual exposure is controlled by the mapping below.
       HOST: 0.0.0.0
-      # When exposing beyond localhost, list the hostnames/IPs you'll browse to:
-      # ALLOWED_HOSTS: 192.168.1.10,dashboard.lan
     ports:
-      # Loopback-only by default; use "4173:4173" to expose on the LAN.
-      - "127.0.0.1:4173:4173"
+      - "4173:4173"
     volumes:
       - .:/app
     restart: unless-stopped

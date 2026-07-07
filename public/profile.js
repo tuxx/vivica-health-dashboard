@@ -12,13 +12,15 @@ window.initProfile = function initProfile() {
 };
 
 async function loadProfile() {
-  $('#profile-loading').classList.remove('hidden');
+  const loadingEl = $('#profile-loading');
+  setLoadingState(loadingEl, 2);
+  loadingEl.classList.remove('hidden');
   $('#profile-content').classList.add('hidden');
 
   renderMyInfo(window.currentUser);
   await Promise.allSettled([loadCompanyInfo(), loadMedicalForm()]);
 
-  $('#profile-loading').classList.add('hidden');
+  loadingEl.classList.add('hidden');
   $('#profile-content').classList.remove('hidden');
 }
 

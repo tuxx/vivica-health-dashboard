@@ -20,6 +20,7 @@
   --border: #e3e5e8;
   --text: #1c1f23;
   --muted: #6b7280;
+  --nav-active: var(--accent-dark);
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
 
   --radius: 10px;
@@ -35,6 +36,7 @@
     --border: #2c3038;
     --text: #e8e9eb;
     --muted: #9aa1ab;
+    --nav-active: #7fd8c2;
     --accent-faded: rgba(79, 189, 165, 0.16);
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.25);
   }
@@ -47,6 +49,7 @@
   --border: #2c3038;
   --text: #e8e9eb;
   --muted: #9aa1ab;
+  --nav-active: #7fd8c2;
   --accent-faded: rgba(79, 189, 165, 0.16);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.25);
 }
@@ -57,6 +60,7 @@
   --border: #e3e5e8;
   --text: #1c1f23;
   --muted: #6b7280;
+  --nav-active: var(--accent-dark);
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
 }
 
@@ -158,9 +162,7 @@ kbd {
 }
 .nav-item.active .shortcut-hint { color: inherit; }
 .nav-item:hover { background: var(--accent-faded); color: var(--text); }
-.nav-item.active { background: var(--accent-faded); color: var(--accent-dark); font-weight: 600; }
-@media (prefers-color-scheme: dark) { .nav-item.active { color: #7fd8c2; } }
-:root[data-theme="dark"] .nav-item.active { color: #7fd8c2; }
+.nav-item.active { background: var(--accent-faded); color: var(--nav-active); font-weight: 600; }
 .nav-item:focus-visible, .icon-nav-item:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -180,9 +182,7 @@ kbd {
 }
 .icon-nav-item svg { width: 18px; height: 18px; }
 .icon-nav-item:hover { background: var(--accent-faded); color: var(--text); border-color: var(--accent); }
-.icon-nav-item.active { background: var(--accent-faded); color: var(--accent-dark); border-color: var(--accent); }
-@media (prefers-color-scheme: dark) { .icon-nav-item.active { color: #7fd8c2; } }
-:root[data-theme="dark"] .icon-nav-item.active { color: #7fd8c2; }
+.icon-nav-item.active { background: var(--accent-faded); color: var(--nav-active); border-color: var(--accent); }
 
 /* Collapsible desktop sidebar — icon-only rail. Gated to desktop widths so it can never
    interact with the mobile top-bar layout further down, regardless of the .collapsed class. */
@@ -294,7 +294,69 @@ button { cursor: pointer; }
 .btn-ghost.subtle:hover { border-color: var(--accent); color: var(--accent-dark); }
 .btn-ghost.subtle:active { background: var(--accent-faded); border-color: var(--accent); color: var(--accent-dark); }
 
+.btn-danger {
+  background: var(--danger);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.1rem;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.btn-danger:hover { filter: brightness(0.9); }
+
 .btn-block { width: 100%; }
+
+/* ---------- shared view states: skeleton / empty / error ----------
+   The one loading, empty and error treatment used by every view (day panel,
+   search results, copy picker, profile) — see the state helpers in shared.js. */
+
+.skeleton-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.skeleton-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+.skeleton-thumb, .skeleton-line {
+  background: var(--surface-alt);
+  border-radius: 7px;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+.skeleton-thumb { width: 42px; height: 42px; flex-shrink: 0; }
+.skeleton-row .skeleton-lines { flex: 1; display: flex; flex-direction: column; gap: 0.45rem; }
+.skeleton-line { height: 0.7rem; border-radius: 999px; width: 60%; }
+.skeleton-line.short { width: 35%; }
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-thumb, .skeleton-line { animation: none; }
+}
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.empty-state svg { width: 28px; height: 28px; color: var(--muted); opacity: 0.7; }
+.empty-state p { margin: 0; }
+.empty-state .btn-ghost { margin-top: 0.3rem; }
+
+.state-error {
+  display: block;
+  background: var(--danger-faded);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin: 0;
+}
 
 .time-input { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
 .time-input.invalid { border-color: var(--danger); }
@@ -586,12 +648,20 @@ button { cursor: pointer; }
   gap: 0.5rem;
   margin-bottom: 1.1rem;
 }
+/* Tiles are buttons: clicking one opens the per-day-part breakdown for that nutrient. */
 .day-total-tile {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.5rem 0.7rem;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
 }
+.day-total-tile:hover { border-color: var(--accent); }
+.day-total-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .day-total-tile .value { font-weight: 700; font-size: 1.05rem; }
 .day-total-tile .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
 .tile-bar {
@@ -670,6 +740,33 @@ button { cursor: pointer; }
   font-size: 1rem; padding: 0.2rem 0.4rem; border-radius: 6px; flex-shrink: 0;
 }
 .day-item .delete-item:hover { background: var(--danger-faded); }
+
+/* ---------- nutrient breakdown modal (tap a day-total tile) ---------- */
+
+.nutrient-breakdown-part { margin-bottom: 1rem; }
+.nutrient-breakdown-part:last-child { margin-bottom: 0; }
+.nutrient-breakdown-header {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  margin-bottom: 0.3rem;
+}
+.nutrient-breakdown-header h3 { flex: 1; margin: 0; }
+.nutrient-breakdown-header .part-total { font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+.nutrient-breakdown-item {
+  display: flex; align-items: baseline; gap: 0.65rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.nutrient-breakdown-item:last-child { border-bottom: none; }
+.nutrient-breakdown-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nutrient-breakdown-item .amount { font-weight: 500; white-space: nowrap; }
+.nutrient-breakdown-item .pct { color: var(--muted); font-size: 0.8rem; white-space: nowrap; min-width: 3.2rem; text-align: right; }
+
+/* ---------- copy-day quick picks (days that actually have items) ---------- */
+
+.copy-day-list { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.7rem; }
+.copy-day-pick { white-space: nowrap; }
+.copy-day-pick .count { color: var(--muted); font-size: 0.75rem; margin-left: 0.3rem; }
+.copy-day-pick.is-active .count { color: inherit; opacity: 0.8; }
 
 /* ---------- mobile ---------- */
 
