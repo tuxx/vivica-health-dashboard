@@ -810,14 +810,18 @@ async function findAndSelectCreatedMeal(name) {
   }
 }
 
-// ---------- Create a new product (from an empty search result, in either search step) ----------
-// "+ Create '<query>' as new product" swaps in a small form for the nutrient facts, POSTs it
-// to the upstream product catalog, then feeds the newly created product straight into whichever
-// flow asked for it — logging it directly, or adding it to the meal being built.
+// ---------- Create a new product (from the "+ Product" button, or an empty search result) ----------
+// Swaps in a small form for the nutrient facts, POSTs it to the upstream product catalog, then
+// feeds the newly created product straight into whichever flow asked for it — logging it
+// directly, or adding it to the meal being built.
 
 let createProductBackStep = 'search';
 let createProductThen = null;
 const CREATE_PRODUCT_FIELDS = ['kcal', 'protein', 'carbs', 'sugar', 'fat', 'satfat', 'fiber', 'salt'];
+
+$('#create-product-open').addEventListener('click', () => {
+  openCreateProductStep($('#search-input').value.trim(), { back: 'search', onCreate: selectLogItem });
+});
 
 function openCreateProductStep(name, { back, onCreate }) {
   createProductBackStep = back;

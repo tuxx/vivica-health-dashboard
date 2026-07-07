@@ -342,7 +342,7 @@ button { cursor: pointer; }
 
 .quick-lists { display: flex; gap: 0.5rem; margin-bottom: 0.7rem; }
 
-.alt-actions { display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0 0.9rem; }
+.alt-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.5rem 0 0.9rem; }
 
 #search-input, #meal-search-input { margin-bottom: 0.8rem; }
 
