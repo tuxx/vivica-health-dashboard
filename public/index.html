@@ -262,6 +262,40 @@
         </form>
       </div>
 
+      <div id="log-modal-create-step" class="hidden">
+        <button type="button" id="create-product-cancel" class="btn-ghost small">← Cancel</button>
+
+        <form id="create-product-form">
+          <label>Product name<input type="text" id="create-product-description" required minlength="2" placeholder="e.g. Homemade granola" /></label>
+
+          <div class="row">
+            <label>Serving amount<input type="number" id="create-product-amount" min="0.01" step="any" required value="100" /></label>
+            <label>Unit<input type="text" id="create-product-unit" required value="g" placeholder="g, ml, piece..." /></label>
+          </div>
+
+          <p class="muted">Nutrient values per serving amount above</p>
+          <div class="row">
+            <label>Energy (kcal)<input type="number" id="create-product-kcal" min="0" step="any" required /></label>
+            <label>Protein (g)<input type="number" id="create-product-protein" min="0" step="any" required /></label>
+          </div>
+          <div class="row">
+            <label>Carbs (g)<input type="number" id="create-product-carbs" min="0" step="any" required /></label>
+            <label>— of which sugar (g)<input type="number" id="create-product-sugar" min="0" step="any" required /></label>
+          </div>
+          <div class="row">
+            <label>Fat (g)<input type="number" id="create-product-fat" min="0" step="any" required /></label>
+            <label>— of which saturated (g)<input type="number" id="create-product-satfat" min="0" step="any" required /></label>
+          </div>
+          <div class="row">
+            <label>Fiber (g)<input type="number" id="create-product-fiber" min="0" step="any" required /></label>
+            <label>Salt (g)<input type="number" id="create-product-salt" min="0" step="any" required /></label>
+          </div>
+
+          <button type="submit" id="create-product-save" class="btn-primary btn-block">Create product</button>
+          <p id="create-product-error" class="error hidden"></p>
+        </form>
+      </div>
+
       <div id="log-modal-form-step" class="hidden">
         <button type="button" id="log-back-to-search" class="btn-ghost small">← Back to search</button>
         <form id="log-form">

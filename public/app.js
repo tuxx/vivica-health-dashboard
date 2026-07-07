@@ -356,6 +356,7 @@ function backToSearchStep() {
   $('#log-modal-form-step').classList.add('hidden');
   $('#log-modal-meal-step').classList.add('hidden');
   $('#log-modal-copy-step').classList.add('hidden');
+  $('#log-modal-create-step').classList.add('hidden');
   $('#log-modal-search-step').classList.remove('hidden');
   $('#log-error').classList.add('hidden');
   $('#log-success').classList.add('hidden');
@@ -434,7 +435,11 @@ async function runNutritionSearch(val) {
       body: { search: val, brand: '', supermarket: null, page: 1, type: '', meal_tab: 'all' }
     });
     const items = Array.isArray(res.data) ? res.data : Object.values(res.data || {});
-    renderResultList(container, items, { onClick: selectLogItem });
+    renderResultList(container, items, {
+      onClick: selectLogItem,
+      searchTerm: val,
+      onCreate: (name) => openCreateProductStep(name, { back: 'search', onCreate: selectLogItem })
+    });
     // A barcode (all-digit input, 6+ chars — whether typed or scanned) with exactly one
     // match auto-advances straight to the log form, mirroring the real app's isBarcode() UX.
     if (/^\d+$/.test(val) && val.length >= 6 && items.length === 1) {
@@ -446,10 +451,18 @@ async function runNutritionSearch(val) {
   }
 }
 
-function renderResultList(container, items, { onClick, metaFn } = {}) {
+function renderResultList(container, items, { onClick, metaFn, searchTerm, onCreate } = {}) {
   container.innerHTML = '';
   if (!items.length) {
     container.innerHTML = '<p class="muted">No results.</p>';
+    if (onCreate && searchTerm) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-ghost small subtle';
+      btn.textContent = `+ Create "${searchTerm}" as new product`;
+      btn.addEventListener('click', () => onCreate(searchTerm));
+      container.appendChild(btn);
+    }
     return;
   }
   for (const item of items) {
@@ -519,6 +532,7 @@ function renderLogForm() {
   $('#log-modal-search-step').classList.add('hidden');
   $('#log-modal-meal-step').classList.add('hidden');
   $('#log-modal-copy-step').classList.add('hidden');
+  $('#log-modal-create-step').classList.add('hidden');
   $('#log-modal-form-step').classList.remove('hidden');
   $('#log-back-to-search').classList.toggle('hidden', !!editingItem);
   $('#log-error').classList.add('hidden');
@@ -649,6 +663,7 @@ function openMealBuilder() {
   renderMealItems();
 
   $('#log-modal-search-step').classList.add('hidden');
+  $('#log-modal-create-step').classList.add('hidden');
   $('#log-modal-meal-step').classList.remove('hidden');
   $('#meal-search-input').focus();
 }
@@ -667,7 +682,9 @@ async function runMealProductSearch(val) {
     const res = await api('/search_nutrient_products', { method: 'POST', body: { query: val } });
     renderResultList(container, res.data || [], {
       metaFn: (item) => `${item.amount ?? ''}${item.measuring_unit ?? ''}`,
-      onClick: openQtyModal
+      onClick: openQtyModal,
+      searchTerm: val,
+      onCreate: (name) => openCreateProductStep(name, { back: 'meal', onCreate: openQtyModal })
     });
   } catch (err) {
     container.innerHTML = `<p class="error"></p>`;
@@ -793,6 +810,83 @@ async function findAndSelectCreatedMeal(name) {
   }
 }
 
+// ---------- Create a new product (from an empty search result, in either search step) ----------
+// "+ Create '<query>' as new product" swaps in a small form for the nutrient facts, POSTs it
+// to the upstream product catalog, then feeds the newly created product straight into whichever
+// flow asked for it — logging it directly, or adding it to the meal being built.
+
+let createProductBackStep = 'search';
+let createProductThen = null;
+const CREATE_PRODUCT_FIELDS = ['kcal', 'protein', 'carbs', 'sugar', 'fat', 'satfat', 'fiber', 'salt'];
+
+function openCreateProductStep(name, { back, onCreate }) {
+  createProductBackStep = back;
+  createProductThen = onCreate;
+
+  $('#create-product-error').classList.add('hidden');
+  $('#create-product-description').value = name || '';
+  $('#create-product-amount').value = 100;
+  $('#create-product-unit').value = 'g';
+  CREATE_PRODUCT_FIELDS.forEach((f) => { $(`#create-product-${f}`).value = ''; });
+
+  $('#log-modal-search-step').classList.add('hidden');
+  $('#log-modal-meal-step').classList.add('hidden');
+  $('#log-modal-create-step').classList.remove('hidden');
+  $('#create-product-description').focus();
+}
+
+$('#create-product-cancel').addEventListener('click', () => {
+  $('#log-modal-create-step').classList.add('hidden');
+  if (createProductBackStep === 'meal') $('#log-modal-meal-step').classList.remove('hidden');
+  else $('#log-modal-search-step').classList.remove('hidden');
+});
+
+$('#create-product-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errorEl = $('#create-product-error');
+  errorEl.classList.add('hidden');
+
+  const description = $('#create-product-description').value.trim();
+  const amount_value = Number($('#create-product-amount').value);
+  const amount_unit = $('#create-product-unit').value.trim();
+  const payload = {
+    description,
+    amount_value,
+    amount_unit,
+    values: {
+      enercc_kcal: Number($('#create-product-kcal').value) || 0,
+      prot_g: Number($('#create-product-protein').value) || 0,
+      cho_g: Number($('#create-product-carbs').value) || 0,
+      sugar_g: Number($('#create-product-sugar').value) || 0,
+      fat_g: Number($('#create-product-fat').value) || 0,
+      fasat_g: Number($('#create-product-satfat').value) || 0,
+      fibt_g: Number($('#create-product-fiber').value) || 0,
+      salt_g: Number($('#create-product-salt').value) || 0
+    }
+  };
+
+  try {
+    $('#create-product-save').disabled = true;
+    const res = await api('/nutrition/nutrient_product_create', { method: 'POST', body: payload });
+    const product = {
+      id: res.id,
+      type_record: 'product',
+      description: res.description || description,
+      measuring_unit: amount_unit,
+      amount: amount_value
+    };
+
+    $('#log-modal-create-step').classList.add('hidden');
+    if (createProductBackStep === 'meal') $('#log-modal-meal-step').classList.remove('hidden');
+    if (createProductThen) await createProductThen(product);
+  } catch (err) {
+    errorEl.textContent = err.data?.errors ? Object.values(err.data.errors).flat().join(' ') : err.message;
+    errorEl.classList.remove('hidden');
+  } finally {
+    $('#create-product-save').disabled = false;
+  }
+});
+
 // ---------- Copy entries from another day (inside the log-food modal) ----------
 // "+ Copy from day" opens a picker: choose a source date, check which of that day's
 // items to bring over, copy them into the modal's target day. Each copy re-fetches
@@ -803,6 +897,7 @@ let copySourceItems = []; // flat list of the currently-loaded source day's item
 
 window.openCopyStep = function openCopyStep() {
   $('#log-modal-search-step').classList.add('hidden');
+  $('#log-modal-create-step').classList.add('hidden');
   $('#log-modal-copy-step').classList.remove('hidden');
   $('#copy-error').classList.add('hidden');
   $('#copy-success').classList.add('hidden');

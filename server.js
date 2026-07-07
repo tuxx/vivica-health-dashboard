@@ -287,6 +287,22 @@ async function handleStats(req, res, query) {
   sendJson(res, 200, result.data);
 }
 
+async function handleCreateProduct(req, res) {
+  if (!requireAuth(res)) return;
+  const body = await readJsonBody(req);
+  const result = await upstream('POST', '/patient/nutrition/nutrient_product_create', body);
+  if (result.ok && result.data?.id) {
+    upsertProduct('product', result.data.id, body.description, {
+      id: result.data.id,
+      type_record: 'product',
+      description: body.description,
+      measuring_unit: body.amount_unit,
+      amount: body.amount_value
+    });
+  }
+  sendJson(res, result.status, result.data);
+}
+
 async function handleSubmitMeal(req, res) {
   if (!requireAuth(res)) return;
   const body = await readJsonBody(req);
@@ -344,6 +360,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/nutrition/delete_scheduled_item' && req.method === 'POST') return await handleDeleteScheduledItem(req, res);
     if (pathname === '/api/nutrition/stats' && req.method === 'GET') return await handleStats(req, res, searchParams);
     if (pathname === '/api/search_nutrient_products' && req.method === 'POST') return await handleSearchNutrientProducts(req, res);
+    if (pathname === '/api/nutrition/nutrient_product_create' && req.method === 'POST') return await handleCreateProduct(req, res);
     if (pathname === '/api/submit_nutrient_meal' && req.method === 'POST') return await handleSubmitMeal(req, res);
     if (pathname === '/api/nutrient_meals_data' && req.method === 'GET') return await handleMealsList(req, res, searchParams);
     if (pathname === '/api/supermarket_types' && req.method === 'GET') return await handleSupermarketTypes(req, res);
