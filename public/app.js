@@ -92,6 +92,7 @@ async function enterApp() {
   window.dayParts = dayParts;
   fillDayPartSelect($('#log-day-part'));
   if (window.renderDayPartsSettingsList) window.renderDayPartsSettingsList();
+  if (window.loadAiSettings) window.loadAiSettings();
 
   window.currentUser = me.user || null;
 
@@ -156,8 +157,10 @@ $$('[data-tab]').forEach((btn) => {
 function showTab(name) {
   $$('[data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   $('#calendar-view').classList.toggle('hidden', name !== 'calendar');
+  $('#chat-view').classList.toggle('hidden', name !== 'chat');
   $('#settings-view').classList.toggle('hidden', name !== 'settings');
   $('#profile-view').classList.toggle('hidden', name !== 'profile');
+  if (name === 'chat' && chatConfigured === null && window.loadAiChatStatus) window.loadAiChatStatus();
 }
 
 // ---------- keyboard shortcuts ----------
@@ -229,6 +232,9 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
   } else if (matchesShortcut(e, 'tabFoodLog')) {
     showTab('calendar');
+    e.preventDefault();
+  } else if (matchesShortcut(e, 'tabChat')) {
+    showTab('chat');
     e.preventDefault();
   } else if (matchesShortcut(e, 'tabSettings')) {
     showTab('settings');

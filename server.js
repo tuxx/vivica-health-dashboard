@@ -10,7 +10,10 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const SESSION_FILE = path.join(__dirname, 'data', 'session.json');
+const AI_CONFIG_FILE = path.join(__dirname, 'data', 'ai_config.json');
 const API_BASE = 'https://api.vivica.health';
+const OPENAI_API_BASE = 'https://api.openai.com';
+const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini';
 const APP_VERSION = process.env.APP_VERSION || '1.63.0'; // matches window.application_version in the
                                // app's config.js; the API gates all requests on this header and
                                // responds 307 with an "update required" payload if it's missing/stale
@@ -53,6 +56,20 @@ function saveSession() {
   fs.chmodSync(SESSION_FILE, 0o600); // { mode } only applies on create; fix pre-existing files
 }
 
+// --- AI chat config (OpenAI API key), same on-disk hardening as the session file ---
+
+let aiConfig = { openai_api_key: null, openai_model: null };
+try {
+  const loaded = JSON.parse(fs.readFileSync(AI_CONFIG_FILE, 'utf8'));
+  aiConfig = { openai_api_key: loaded.openai_api_key || null, openai_model: loaded.openai_model || null };
+} catch { /* not configured yet */ }
+
+function saveAiConfig() {
+  fs.mkdirSync(path.dirname(AI_CONFIG_FILE), { recursive: true, mode: 0o700 });
+  fs.writeFileSync(AI_CONFIG_FILE, JSON.stringify(aiConfig), { mode: 0o600 });
+  fs.chmodSync(AI_CONFIG_FILE, 0o600);
+}
+
 // --- upstream fetch helper ---
 async function upstream(method, urlPath, body) {
   const headers = {
@@ -88,6 +105,24 @@ async function upstream(method, urlPath, body) {
       }
     };
   }
+
+  return { status: res.status, ok: res.ok, data };
+}
+
+// --- OpenAI chat helper ---
+async function callOpenAI(messages, model) {
+  const res = await fetch(OPENAI_API_BASE + '/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${aiConfig.openai_api_key}`
+    },
+    body: JSON.stringify({ model: model || DEFAULT_OPENAI_MODEL, messages, temperature: 0.5 })
+  });
+
+  let data = null;
+  const text = await res.text();
+  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
 
   return { status: res.status, ok: res.ok, data };
 }
@@ -322,22 +357,27 @@ async function handleDeleteScheduledItem(req, res) {
   sendJson(res, result.status, result.data);
 }
 
+// Shared by handleStats and handleChat so both hit the same cache instead of duplicating
+// the upstream call.
+async function fetchDayStats(date, { refresh = false } = {}) {
+  const cacheKey = `stats:${date}`;
+  if (!refresh) {
+    const cached = getCached(cacheKey, STATS_TTL_MS);
+    if (cached) return { status: 200, ok: true, data: cached };
+  }
+
+  const result = await upstream('POST', '/patient/nutrition/stats', { date });
+  if (result.ok) setCached(cacheKey, result.data);
+  return result;
+}
+
 async function handleStats(req, res, query) {
   if (!requireAuth(res)) return;
   const date = query.get('date');
   if (!date) { sendJson(res, 400, { error: 'date is required' }); return; }
 
-  const cacheKey = `stats:${date}`;
-  if (!query.get('refresh')) {
-    const cached = getCached(cacheKey, STATS_TTL_MS);
-    if (cached) { sendJson(res, 200, cached); return; }
-  }
-
-  const result = await upstream('POST', '/patient/nutrition/stats', { date });
-  if (!result.ok) { sendJson(res, result.status, result.data); return; }
-
-  setCached(cacheKey, result.data);
-  sendJson(res, 200, result.data);
+  const result = await fetchDayStats(date, { refresh: !!query.get('refresh') });
+  sendJson(res, result.status, result.data);
 }
 
 async function handleHasNutritionDays(req, res) {
@@ -414,6 +454,112 @@ function handleStatus(req, res) {
   sendJson(res, 200, { authenticated: !!session.access_token, user: session.user });
 }
 
+// --- AI chat settings & endpoint ---
+
+function handleGetAiSettings(req, res) {
+  if (!requireAuth(res)) return;
+  sendJson(res, 200, {
+    configured: !!aiConfig.openai_api_key,
+    model: aiConfig.openai_model || DEFAULT_OPENAI_MODEL
+  });
+}
+
+async function handleSaveAiSettings(req, res) {
+  if (!requireAuth(res)) return;
+  const body = await readJsonBody(req);
+
+  if (typeof body.api_key === 'string' && body.api_key.trim()) {
+    aiConfig.openai_api_key = body.api_key.trim();
+  }
+  if (typeof body.model === 'string' && body.model.trim()) {
+    aiConfig.openai_model = body.model.trim();
+  }
+  saveAiConfig();
+
+  sendJson(res, 200, { configured: !!aiConfig.openai_api_key, model: aiConfig.openai_model || DEFAULT_OPENAI_MODEL });
+}
+
+const MAX_CHAT_MESSAGE_LENGTH = 2000;
+
+// Only these fields ever leave this function into the LLM prompt — no user identity,
+// no medical_form, no raw upstream payloads (mirrors the SESSION_USER_FIELDS boundary above).
+function buildNutritionContext(date, statsData) {
+  const stats = statsData?.stats || {};
+  const goal = statsData?.goal || {};
+  const itemsByDayPart = statsData?.items || {};
+
+  const lines = [`Today's date: ${date}`, ''];
+  lines.push('Daily goal vs. consumed so far:');
+  for (const [key, label] of [['enercc_kcal', 'Energy (kcal)'], ['prot_g', 'Protein (g)'], ['fat_g', 'Fat (g)'], ['cho_g', 'Carbs (g)'], ['fibt_g', 'Fiber (g)']]) {
+    const consumed = Number(stats[key]) || 0;
+    const goalVal = Number(goal[key]) || 0;
+    const remaining = goalVal ? Math.round((goalVal - consumed) * 10) / 10 : null;
+    lines.push(`- ${label}: ${Math.round(consumed * 10) / 10} consumed / ${goalVal || 'no goal set'} goal` +
+      (remaining !== null ? ` (${remaining} remaining)` : ''));
+  }
+
+  lines.push('', 'Items logged today:');
+  let itemCount = 0;
+  for (const [dayPart, items] of Object.entries(itemsByDayPart)) {
+    if (!Array.isArray(items)) continue;
+    for (const item of items) {
+      if (itemCount >= 40) break;
+      const kcal = item?.values?.enercc_kcal ? `${Math.round(item.values.enercc_kcal)} kcal` : '';
+      lines.push(`- ${dayPart}: ${item?.description || 'item'}${kcal ? ` (${kcal})` : ''}`);
+      itemCount++;
+    }
+  }
+  if (!itemCount) lines.push('- (nothing logged yet)');
+
+  return lines.join('\n');
+}
+
+async function handleChat(req, res) {
+  if (!requireAuth(res)) return;
+  const body = await readJsonBody(req);
+
+  const message = typeof body.message === 'string' ? body.message.trim() : '';
+  if (!message || message.length > MAX_CHAT_MESSAGE_LENGTH) {
+    sendJson(res, 400, { error: 'invalid_message' });
+    return;
+  }
+  const date = typeof body.date === 'string' && body.date ? body.date : new Date().toISOString().slice(0, 10);
+
+  if (!aiConfig.openai_api_key) {
+    sendJson(res, 400, { error: 'ai_not_configured', message: 'Add your OpenAI API key in Settings first.' });
+    return;
+  }
+
+  const statsResult = await fetchDayStats(date);
+  const context = buildNutritionContext(date, statsResult.ok ? statsResult.data : null);
+
+  const systemPrompt = 'You are a friendly, practical nutrition assistant inside the Vivica health dashboard. ' +
+    'Answer using only the nutrition data provided below — do not invent numbers. Keep answers concise and ' +
+    'actionable. You are not a medical professional; avoid medical advice.\n\n' + context;
+
+  const history = Array.isArray(body.history) ? body.history : [];
+  const trimmedHistory = history
+    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+    .slice(-16)
+    .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_CHAT_MESSAGE_LENGTH) }));
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...trimmedHistory,
+    { role: 'user', content: message }
+  ];
+
+  const result = await callOpenAI(messages, aiConfig.openai_model);
+  if (!result.ok) {
+    console.error('OpenAI chat request failed', result.status, result.data);
+    sendJson(res, 502, { error: 'openai_error' });
+    return;
+  }
+
+  const reply = result.data?.choices?.[0]?.message?.content || '';
+  sendJson(res, 200, { reply });
+}
+
 // --- router ---
 const server = http.createServer(async (req, res) => {
   try {
@@ -450,6 +596,9 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/supermarket_types' && req.method === 'GET') return await handleSupermarketTypes(req, res);
     if (pathname === '/api/products/recent' && req.method === 'GET') return handleRecentProducts(req, res);
     if (pathname === '/api/products/frequent' && req.method === 'GET') return handleFrequentProducts(req, res);
+    if (pathname === '/api/settings/ai' && req.method === 'GET') return handleGetAiSettings(req, res);
+    if (pathname === '/api/settings/ai' && req.method === 'POST') return await handleSaveAiSettings(req, res);
+    if (pathname === '/api/chat' && req.method === 'POST') return await handleChat(req, res);
 
     if (pathname.startsWith('/api/')) { sendJson(res, 404, { error: 'not_found' }); return; }
 

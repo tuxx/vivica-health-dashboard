@@ -826,3 +826,44 @@ button { cursor: pointer; }
 
   #scan-viewport { aspect-ratio: 3 / 4; }
 }
+
+/* ---------- chat tab ---------- */
+
+.chat-panel { display: flex; flex-direction: column; gap: 0.9rem; height: min(640px, 70vh); }
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-right: 0.25rem;
+}
+
+.chat-bubble {
+  max-width: 80%;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--radius);
+  font-size: 0.92rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-bubble-user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+}
+
+.chat-bubble-assistant {
+  align-self: flex-start;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.chat-bubble-pending { color: var(--muted); font-style: italic; }
+
+.chat-input-row { display: flex; gap: 0.6rem; }
+.chat-input-row input { flex: 1; }

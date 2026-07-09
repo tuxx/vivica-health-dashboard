@@ -53,6 +53,11 @@
           <span>Food Log</span>
           <kbd class="shortcut-hint" data-shortcut-key="tabFoodLog"></kbd>
         </button>
+        <button data-tab="chat" class="nav-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
+          <span>Chat</span>
+          <kbd class="shortcut-hint" data-shortcut-key="tabChat"></kbd>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -114,6 +119,25 @@
           </div>
           <div class="calendar-weekdays" id="calendar-weekdays"></div>
           <div id="calendar-grid" class="calendar-grid"></div>
+        </div>
+      </section>
+
+      <section id="chat-view" class="view hidden">
+        <header class="view-header">
+          <h1>Chat</h1>
+          <p class="muted">Ask about today's nutrition — the assistant sees your goal and what you've logged so far.</p>
+        </header>
+
+        <div id="chat-not-configured" class="panel hidden">
+          <p>Add an OpenAI API key in <button type="button" id="chat-open-settings" class="btn-ghost small">Settings</button> to start chatting.</p>
+        </div>
+
+        <div class="panel chat-panel">
+          <div id="chat-messages" class="chat-messages"></div>
+          <form id="chat-form" class="chat-input-row">
+            <input type="text" id="chat-input" placeholder="What should I eat today to fill up my kcal?" autocomplete="off" />
+            <button type="submit" id="chat-send" class="btn-primary">Send</button>
+          </form>
         </div>
       </section>
 
@@ -203,6 +227,22 @@
           <h3>Day panel</h3>
           <p class="muted">Hide parts of the day you don't use from the main food log view.</p>
           <div id="day-parts-hide-list"></div>
+        </div>
+
+        <div class="panel settings-panel">
+          <h3>AI Assistant</h3>
+          <p class="muted">Powers the Chat tab. Your key is stored on this server only, never sent to the browser.</p>
+          <form id="ai-settings-form">
+            <label>OpenAI API key
+              <input type="password" id="setting-ai-key" placeholder="sk-..." autocomplete="off" />
+            </label>
+            <p id="ai-key-status" class="muted"></p>
+            <label>Model
+              <input type="text" id="setting-ai-model" placeholder="gpt-4o-mini" />
+            </label>
+            <button type="submit" id="ai-settings-save" class="btn-primary small">Save</button>
+            <p id="ai-settings-saved" class="success hidden">Saved.</p>
+          </form>
         </div>
       </section>
     </main>
@@ -433,5 +473,6 @@
   <script src="/calendar.js"></script>
   <script src="/settings.js"></script>
   <script src="/profile.js"></script>
+  <script src="/chat.js"></script>
 </body>
 </html>

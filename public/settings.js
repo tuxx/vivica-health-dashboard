@@ -8,11 +8,10 @@ function populateSettingsForm() {
   $('#setting-show-shortcut-hints').checked = !!currentSettings.showShortcutHints;
 }
 
-function showSettingsSaved() {
-  const el = $('#settings-saved');
+function showSettingsSaved(el = $('#settings-saved')) {
   el.classList.remove('hidden');
-  clearTimeout(showSettingsSaved._t);
-  showSettingsSaved._t = setTimeout(() => el.classList.add('hidden'), 1500);
+  clearTimeout(el._hideTimer);
+  el._hideTimer = setTimeout(() => el.classList.add('hidden'), 1500);
 }
 
 $('#settings-form').addEventListener('change', (e) => {
@@ -146,6 +145,44 @@ window.renderDayPartsSettingsList = function renderDayPartsSettingsList() {
     });
   });
 };
+
+// ---------- AI Assistant (Chat tab) ----------
+// Unlike the rest of this form, the key/model are stored server-side (server.js), so this
+// needs an authenticated round-trip rather than an instant localStorage write — populated
+// once logged in (see app.js enterApp), not at module load like populateSettingsForm().
+
+window.loadAiSettings = async function loadAiSettings() {
+  try {
+    const status = await api('/settings/ai');
+    $('#setting-ai-model').value = status.model || '';
+    $('#ai-key-status').textContent = status.configured
+      ? 'A key is already saved. Leave blank to keep it, or enter a new one to replace it.'
+      : 'No key saved yet.';
+  } catch {
+    $('#ai-key-status').textContent = '';
+  }
+};
+
+$('#ai-settings-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const keyInput = $('#setting-ai-key');
+  const modelInput = $('#setting-ai-model');
+  try {
+    const status = await api('/settings/ai', {
+      method: 'POST',
+      body: { api_key: keyInput.value.trim(), model: modelInput.value.trim() }
+    });
+    keyInput.value = '';
+    modelInput.value = status.model || '';
+    $('#ai-key-status').textContent = status.configured
+      ? 'A key is already saved. Leave blank to keep it, or enter a new one to replace it.'
+      : 'No key saved yet.';
+    if (window.loadAiChatStatus) window.loadAiChatStatus(); // re-check so the Chat tab's banner clears without a reload
+    showSettingsSaved($('#ai-settings-saved'));
+  } catch (err) {
+    $('#ai-key-status').textContent = err.message || 'Could not save settings.';
+  }
+});
 
 populateSettingsForm();
 renderShortcutsSettingsList();

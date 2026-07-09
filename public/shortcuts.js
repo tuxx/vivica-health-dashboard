@@ -11,6 +11,7 @@ const SHORTCUT_ACTIONS = [
   { id: 'copyFromDay', label: 'Copy from day', group: 'Actions', default: 'd' },
   { id: 'scanBarcode', label: 'Scan barcode', group: 'Actions', default: 'b' },
   { id: 'tabFoodLog', label: 'Food Log tab', group: 'Navigation', default: 'c' },
+  { id: 'tabChat', label: 'Chat tab', group: 'Navigation', default: 'g' },
   { id: 'tabProfile', label: 'Profile tab', group: 'Navigation', default: 'p' },
   { id: 'tabSettings', label: 'Settings tab', group: 'Navigation', default: 's' },
   { id: 'focusSearch', label: 'Focus search', group: 'Navigation', default: '/' },
