@@ -58,10 +58,14 @@ function saveSession() {
 
 // --- AI chat config (OpenAI API key), same on-disk hardening as the session file ---
 
-let aiConfig = { openai_api_key: null, openai_model: null };
+let aiConfig = { openai_api_key: null, openai_model: null, custom_instructions: null };
 try {
   const loaded = JSON.parse(fs.readFileSync(AI_CONFIG_FILE, 'utf8'));
-  aiConfig = { openai_api_key: loaded.openai_api_key || null, openai_model: loaded.openai_model || null };
+  aiConfig = {
+    openai_api_key: loaded.openai_api_key || null,
+    openai_model: loaded.openai_model || null,
+    custom_instructions: loaded.custom_instructions || null
+  };
 } catch { /* not configured yet */ }
 
 function saveAiConfig() {
@@ -456,11 +460,14 @@ function handleStatus(req, res) {
 
 // --- AI chat settings & endpoint ---
 
+const MAX_CUSTOM_INSTRUCTIONS_LENGTH = 1000;
+
 function handleGetAiSettings(req, res) {
   if (!requireAuth(res)) return;
   sendJson(res, 200, {
     configured: !!aiConfig.openai_api_key,
-    model: aiConfig.openai_model || DEFAULT_OPENAI_MODEL
+    model: aiConfig.openai_model || DEFAULT_OPENAI_MODEL,
+    custom_instructions: aiConfig.custom_instructions || ''
   });
 }
 
@@ -474,9 +481,16 @@ async function handleSaveAiSettings(req, res) {
   if (typeof body.model === 'string' && body.model.trim()) {
     aiConfig.openai_model = body.model.trim();
   }
+  if (typeof body.custom_instructions === 'string') {
+    aiConfig.custom_instructions = body.custom_instructions.trim().slice(0, MAX_CUSTOM_INSTRUCTIONS_LENGTH) || null;
+  }
   saveAiConfig();
 
-  sendJson(res, 200, { configured: !!aiConfig.openai_api_key, model: aiConfig.openai_model || DEFAULT_OPENAI_MODEL });
+  sendJson(res, 200, {
+    configured: !!aiConfig.openai_api_key,
+    model: aiConfig.openai_model || DEFAULT_OPENAI_MODEL,
+    custom_instructions: aiConfig.custom_instructions || ''
+  });
 }
 
 const MAX_CHAT_MESSAGE_LENGTH = 2000;
@@ -533,9 +547,13 @@ async function handleChat(req, res) {
   const statsResult = await fetchDayStats(date);
   const context = buildNutritionContext(date, statsResult.ok ? statsResult.data : null);
 
+  const customInstructions = aiConfig.custom_instructions
+    ? `\n\nAdditional instructions from the user (apply these to every reply):\n${aiConfig.custom_instructions}`
+    : '';
+
   const systemPrompt = 'You are a friendly, practical nutrition assistant inside the Vivica health dashboard. ' +
     'Answer using only the nutrition data provided below — do not invent numbers. Keep answers concise and ' +
-    'actionable. You are not a medical professional; avoid medical advice.\n\n' + context;
+    'actionable. You are not a medical professional; avoid medical advice.' + customInstructions + '\n\n' + context;
 
   const history = Array.isArray(body.history) ? body.history : [];
   const trimmedHistory = history

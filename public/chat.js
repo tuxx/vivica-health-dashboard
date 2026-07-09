@@ -6,6 +6,8 @@ let chatHistory = []; // [{ role: 'user'|'assistant', content }]
 let chatConfigured = null; // null = unknown yet, else boolean
 
 function appendChatMessage(role, text) {
+  const emptyState = document.getElementById('chat-empty-state');
+  if (emptyState) emptyState.remove();
   const el = document.createElement('div');
   el.className = `chat-bubble chat-bubble-${role}`;
   el.textContent = text;

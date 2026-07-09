@@ -204,10 +204,10 @@ main { flex: 1; padding: 2rem 2.5rem; max-width: 1180px; }
 
 /* ---------- buttons / inputs ---------- */
 
-input, select, button { font: inherit; color: inherit; }
+input, select, button, textarea { font: inherit; color: inherit; }
 
 input[type="text"], input[type="email"], input[type="password"],
-input[type="number"], input[type="search"], input[type="date"], select {
+input[type="number"], input[type="search"], input[type="date"], select, textarea {
   padding: 0.55rem 0.7rem;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -215,7 +215,8 @@ input[type="number"], input[type="search"], input[type="date"], select {
   color: var(--text);
   width: 100%;
 }
-input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+textarea { resize: vertical; min-height: 4.5rem; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 label {
   display: flex;
@@ -331,7 +332,7 @@ button { cursor: pointer; }
   50% { opacity: 0.45; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-thumb, .skeleton-line { animation: none; }
+  .skeleton-thumb, .skeleton-line, .chat-bubble-pending { animation: none; }
 }
 
 .empty-state {
@@ -863,7 +864,29 @@ button { cursor: pointer; }
   color: var(--text);
 }
 
-.chat-bubble-pending { color: var(--muted); font-style: italic; }
+.chat-bubble-pending { color: var(--muted); animation: skeleton-pulse 1.4s ease-in-out infinite; }
 
-.chat-input-row { display: flex; gap: 0.6rem; }
+.chat-empty-state {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: 320px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.chat-empty-state svg { width: 32px; height: 32px; opacity: 0.6; }
+.chat-empty-state p { margin: 0; }
+
+.chat-input-row {
+  display: flex;
+  gap: 0.6rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.9rem;
+}
 .chat-input-row input { flex: 1; }
+
+.chat-send-btn { display: inline-flex; align-items: center; gap: 0.4rem; }
+.chat-send-btn svg { width: 18px; height: 18px; flex-shrink: 0; }

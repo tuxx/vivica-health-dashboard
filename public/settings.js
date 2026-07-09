@@ -155,6 +155,7 @@ window.loadAiSettings = async function loadAiSettings() {
   try {
     const status = await api('/settings/ai');
     $('#setting-ai-model').value = status.model || '';
+    $('#setting-ai-instructions').value = status.custom_instructions || '';
     $('#ai-key-status').textContent = status.configured
       ? 'A key is already saved. Leave blank to keep it, or enter a new one to replace it.'
       : 'No key saved yet.';
@@ -167,13 +168,15 @@ $('#ai-settings-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const keyInput = $('#setting-ai-key');
   const modelInput = $('#setting-ai-model');
+  const instructionsInput = $('#setting-ai-instructions');
   try {
     const status = await api('/settings/ai', {
       method: 'POST',
-      body: { api_key: keyInput.value.trim(), model: modelInput.value.trim() }
+      body: { api_key: keyInput.value.trim(), model: modelInput.value.trim(), custom_instructions: instructionsInput.value.trim() }
     });
     keyInput.value = '';
     modelInput.value = status.model || '';
+    instructionsInput.value = status.custom_instructions || '';
     $('#ai-key-status').textContent = status.configured
       ? 'A key is already saved. Leave blank to keep it, or enter a new one to replace it.'
       : 'No key saved yet.';
