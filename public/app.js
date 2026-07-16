@@ -1051,7 +1051,11 @@ $('#copy-submit').addEventListener('click', async () => {
   const items = checkedIdxs.map((idx) => {
     const item = copySourceItems[idx];
     const isMeal = item.type_record === 'meal';
-    return { type: typeForRecord(item.type_record), id: isMeal ? item.meal_id : item.id, day_part: item.day_part };
+    // Must be the per-patient pivot id (matches delete_scheduled_item's usage), not the
+    // underlying catalog product/meal id — the upstream API resolves this id against the
+    // patient's own logged entries and 401s if it's actually a different id space.
+    const id = isMeal ? item.meal_pivot_id : item.product_pivot_id;
+    return { type: typeForRecord(item.type_record), id, day_part: item.day_part };
   });
 
   $('#copy-submit').disabled = true;
