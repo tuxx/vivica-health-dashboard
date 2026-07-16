@@ -923,10 +923,29 @@ $('#create-product-form').addEventListener('submit', async (e) => {
 // ---------- Copy entries from another day (inside the log-food modal) ----------
 // "+ Copy from day" opens a picker: choose a source date, check which of that day's
 // items to bring over, copy them into the modal's target day. Each copy re-fetches
-// item_data (same as a normal log) and submits with the source item's own day-part/time
-// and amount/serving carried over — only the date changes.
+// item_data (same as a normal log) and submits with the source item's own time and
+// amount/serving carried over; the day-part defaults to matching the source but can be
+// overridden (e.g. bring a lunch item over as dinner) via the "Add to" select.
 
 let copySourceItems = []; // flat list of the currently-loaded source day's items
+
+// "Original day part" (empty value) plus one option per configured day part, so copied
+// items can be dropped into a different day part than the one they were logged under.
+function fillCopyTargetDayPartSelect() {
+  const sel = $('#copy-target-day-part');
+  sel.innerHTML = '';
+  const keepOpt = document.createElement('option');
+  keepOpt.value = '';
+  keepOpt.textContent = 'Original day part';
+  sel.appendChild(keepOpt);
+  for (const dp of dayParts) {
+    const opt = document.createElement('option');
+    opt.value = dp;
+    opt.textContent = ucFirst(dp.replace(/_/g, ' '));
+    sel.appendChild(opt);
+  }
+  sel.value = '';
+}
 
 window.openCopyStep = function openCopyStep() {
   $('#log-modal-search-step').classList.add('hidden');
@@ -935,6 +954,7 @@ window.openCopyStep = function openCopyStep() {
   $('#copy-error').classList.add('hidden');
   $('#copy-success').classList.add('hidden');
   $('#copy-select-all').checked = false;
+  fillCopyTargetDayPartSelect();
 
   const targetDate = logContext?.date || todayStr();
   const sourceDate = new Date(targetDate + 'T00:00:00');
@@ -1048,6 +1068,7 @@ $('#copy-submit').addEventListener('click', async () => {
   const checkedIdxs = $$('.copy-item-checkbox').filter((cb) => cb.checked).map((cb) => Number(cb.dataset.idx));
   const sourceDate = $('#copy-source-date').value;
   const targetDate = logContext?.date || todayStr();
+  const targetDayPart = $('#copy-target-day-part').value;
   const items = checkedIdxs.map((idx) => {
     const item = copySourceItems[idx];
     const isMeal = item.type_record === 'meal';
@@ -1055,7 +1076,7 @@ $('#copy-submit').addEventListener('click', async () => {
     // underlying catalog product/meal id — the upstream API resolves this id against the
     // patient's own logged entries and 401s if it's actually a different id space.
     const id = isMeal ? item.meal_pivot_id : item.product_pivot_id;
-    return { type: typeForRecord(item.type_record), id, day_part: item.day_part };
+    return { type: typeForRecord(item.type_record), id, day_part: targetDayPart || item.day_part };
   });
 
   $('#copy-submit').disabled = true;
