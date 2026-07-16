@@ -931,6 +931,8 @@ let copySourceItems = []; // flat list of the currently-loaded source day's item
 
 // "Original day part" (empty value) plus one option per configured day part, so copied
 // items can be dropped into a different day part than the one they were logged under.
+// Defaults to the day-part the modal was opened for (e.g. the "+" on a specific row)
+// when that was explicit, otherwise "Original day part" for the generic add button.
 function fillCopyTargetDayPartSelect() {
   const sel = $('#copy-target-day-part');
   sel.innerHTML = '';
@@ -944,7 +946,34 @@ function fillCopyTargetDayPartSelect() {
     opt.textContent = ucFirst(dp.replace(/_/g, ' '));
     sel.appendChild(opt);
   }
-  sel.value = '';
+  sel.value = (logContext?.dayPartExplicit && logContext.day_part) ? logContext.day_part : '';
+}
+
+// duplicate_items_to_date's per-item day_part is not honored by the upstream API — it
+// always keeps each item on its source day-part regardless of what's sent (confirmed
+// live: copying breakfast -> dinner still landed on breakfast). So when the user picks
+// an explicit target day-part, fall back to the same item_data + submit_item sequence a
+// normal "Log it" uses, which does respect day_part, one item at a time.
+async function copyItemViaSubmit(item, targetDate, dayPart) {
+  const isMeal = item.type_record === 'meal';
+  const upstreamType = typeForRecord(item.type_record);
+  const catalogId = isMeal ? item.meal_id : item.id;
+  const itemData = await api('/nutrition/item_data', { method: 'POST', body: { type: upstreamType, id: catalogId } });
+  const payload = Object.assign({}, itemData, {
+    id: catalogId,
+    type_record: item.type_record,
+    description: isMeal ? (item.meal_name || item.description) : item.description,
+    measuring_unit: item.measuring_unit,
+    date: targetDate,
+    time: item.intended_time || nowTimeStr(),
+    day_part: dayPart,
+    specify_method: item.nutrient_conversion_id ? 'conversion' : 'manual',
+    amount_value: item.nutrient_conversion_id ? '' : (item.used_product_amount ?? ''),
+    amount_pieces: item.amount_pieces ?? item.used_amount ?? '',
+    selected_conversion_id: item.nutrient_conversion_id || '',
+    meal_amount: item.meal_amount || 1
+  });
+  return api('/nutrition/submit_item', { method: 'POST', body: payload });
 }
 
 window.openCopyStep = function openCopyStep() {
@@ -1069,27 +1098,52 @@ $('#copy-submit').addEventListener('click', async () => {
   const sourceDate = $('#copy-source-date').value;
   const targetDate = logContext?.date || todayStr();
   const targetDayPart = $('#copy-target-day-part').value;
-  const items = checkedIdxs.map((idx) => {
-    const item = copySourceItems[idx];
-    const isMeal = item.type_record === 'meal';
-    // Must be the per-patient pivot id (matches delete_scheduled_item's usage), not the
-    // underlying catalog product/meal id — the upstream API resolves this id against the
-    // patient's own logged entries and 401s if it's actually a different id space.
-    const id = isMeal ? item.meal_pivot_id : item.product_pivot_id;
-    return { type: typeForRecord(item.type_record), id, day_part: targetDayPart || item.day_part };
-  });
+  const sourceItems = checkedIdxs.map((idx) => copySourceItems[idx]);
 
   $('#copy-submit').disabled = true;
   try {
-    // Single atomic call (up to 50 items) instead of resubmitting one item at a time —
-    // no partial-failure state to reconcile.
-    await api('/nutrition/duplicate_items_to_date', { method: 'POST', body: { from_date: sourceDate, to_date: targetDate, items } });
-    if (window.invalidateCalendarDay) window.invalidateCalendarDay(targetDate);
-    successEl.textContent = `Copied ${items.length} item${items.length === 1 ? '' : 's'}.`;
-    successEl.classList.remove('hidden');
-    setTimeout(() => {
-      if (!$('#log-modal').classList.contains('hidden')) closeLogModal();
-    }, 900);
+    if (targetDayPart) {
+      // Per-item submit_item calls (see copyItemViaSubmit) since the bulk endpoint below
+      // won't move items to a different day-part. Not atomic, so report partial failure.
+      let failed = 0;
+      for (const item of sourceItems) {
+        try {
+          await copyItemViaSubmit(item, targetDate, targetDayPart);
+        } catch {
+          failed++;
+        }
+      }
+      if (window.invalidateCalendarDay) window.invalidateCalendarDay(targetDate);
+      if (failed) {
+        errorEl.textContent = `Copied ${sourceItems.length - failed} of ${sourceItems.length} item${sourceItems.length === 1 ? '' : 's'} — ${failed} failed.`;
+        errorEl.classList.remove('hidden');
+      } else {
+        successEl.textContent = `Copied ${sourceItems.length} item${sourceItems.length === 1 ? '' : 's'}.`;
+        successEl.classList.remove('hidden');
+        setTimeout(() => {
+          if (!$('#log-modal').classList.contains('hidden')) closeLogModal();
+        }, 900);
+      }
+    } else {
+      const items = sourceItems.map((item) => {
+        const isMeal = item.type_record === 'meal';
+        // Must be the per-patient pivot id (matches delete_scheduled_item's usage), not the
+        // underlying catalog product/meal id — the upstream API resolves this id against the
+        // patient's own logged entries and 401s if it's actually a different id space.
+        const id = isMeal ? item.meal_pivot_id : item.product_pivot_id;
+        return { type: typeForRecord(item.type_record), id, day_part: item.day_part };
+      });
+      // Single atomic call (up to 50 items) instead of resubmitting one item at a time —
+      // no partial-failure state to reconcile. Only usable when keeping each item's own
+      // day-part, since the upstream endpoint ignores per-item day_part overrides.
+      await api('/nutrition/duplicate_items_to_date', { method: 'POST', body: { from_date: sourceDate, to_date: targetDate, items } });
+      if (window.invalidateCalendarDay) window.invalidateCalendarDay(targetDate);
+      successEl.textContent = `Copied ${items.length} item${items.length === 1 ? '' : 's'}.`;
+      successEl.classList.remove('hidden');
+      setTimeout(() => {
+        if (!$('#log-modal').classList.contains('hidden')) closeLogModal();
+      }, 900);
+    }
   } catch (err) {
     errorEl.textContent = err.data?.errors ? Object.values(err.data.errors).flat().join(' ') : err.message;
     errorEl.classList.remove('hidden');
