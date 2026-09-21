@@ -7,8 +7,12 @@ services:
       # Inside the container the server must bind all interfaces for the port
       # mapping to reach it; actual exposure is controlled by the mapping below.
       HOST: 0.0.0.0
+      # Must match the current Vivica app release or the upstream API rejects
+      # every request with 503 app_version_outdated. Check the Vivica app's
+      # App Store/Play Store listing for the current version when bumping.
+      APP_VERSION: 1.69.0
     ports:
-      - "4173:4173"
+      - "8999:4173"
     volumes:
       - .:/app
     restart: unless-stopped
